@@ -12,7 +12,7 @@ At Captor we are running python 3.13 at the moment. However, these utilities sho
 
 ### external_graphql_client.py
 
-An API client necessary to access the [Captor Graphql API](https://api.captor.se/graphql). It requires that your a registered user that can be authenticated.
+An API client necessary to access the [Captor Graphql API](https://api.captor.se/graphql). It requires that you are a registered user that can be authenticated.
 
 ### use_graphql.py
 
