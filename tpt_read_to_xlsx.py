@@ -6,10 +6,6 @@ import requests
 from pandas import DataFrame, concat
 
 
-class GraphqlException(Exception):
-    pass
-
-
 def sort_key(col_name: str) -> tuple[float | int, str]:
     match = re_match(r"(\d+)([A-Za-z]*)_", col_name)
     if match:
