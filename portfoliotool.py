@@ -4,13 +4,17 @@ import requests
 
 
 def make_fund_basket(positions: dict[str, float], timeout: int = 10) -> OpenFrame:
-    response = requests.get(url="https://api.captor.se/public/api/nav", timeout=timeout)
+    response = requests.get(
+        url="https://api.captor.se/public/api/nav", timeout=timeout
+    )
     response.raise_for_status()
 
-    series, weights = [], []
+    found, weights, series = set(), [], []
     result = response.json()
     for data in result:
         if data["isin"] in positions:
+            found.add(data["isin"])
+            weights.append(positions[data["isin"]])
             series.append(
                 OpenTimeSeries.from_arrays(
                     name=data["longName"],
@@ -21,10 +25,11 @@ def make_fund_basket(positions: dict[str, float], timeout: int = 10) -> OpenFram
                     valuetype=ValueType.PRICE,
                 )
             )
-            weights.append(positions[data["isin"]])
 
-    if len(series) == 0:
-        raise ValueError("Request for NAV series returned no data.")
+    if len(set(positions.keys()) - found) != 0:
+        raise ValueError(
+            f"Request for NAV series failed. Missing ISINs are: {set(positions.keys()) - found}"
+        )
 
     return OpenFrame(constituents=series, weights=weights)
 
@@ -48,7 +53,9 @@ if __name__ == "__main__":
     portfolio = OpenTimeSeries.from_df(basket.make_portfolio(name="Portfolio"))
     basket.add_timeseries(portfolio)
 
-    figure, plotfile = basket.plot_series(tick_fmt=".1%", filename="portfolioplot.html")
+    figure, plotfile = basket.plot_series(
+        tick_fmt=".1%", filename="portfolioplot.html"
+    )
 
     df = basket.all_properties(
         properties=[

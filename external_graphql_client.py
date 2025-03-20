@@ -90,7 +90,10 @@ def token_get_server(db: str, base_url: str, filename: str, port: int = 5678) ->
 
     if check_internet():
         webbrowser.open(
-            url=f"https://{url_str}portal.{base_url}/token?redirect_uri=http://localhost:{port}/token",
+            url=(
+                f"https://{url_str}portal.{base_url}/token?"
+                f"redirect_uri=http://localhost:{port}/token"
+            ),
             new=2,
         )
     else:
@@ -197,7 +200,11 @@ class ExternalGraphQLClient:
 
         try:
             response = requests.post(
-                url=self.url, json=data, headers=headers, verify=verify, timeout=timeout
+                url=self.url,
+                json=data,
+                headers=headers,
+                verify=verify,
+                timeout=timeout,
             )
             response.raise_for_status()
         except requests.HTTPError as exc:

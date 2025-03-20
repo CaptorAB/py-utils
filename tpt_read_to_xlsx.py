@@ -72,7 +72,9 @@ def collate_fund_tpt_reports(
         data = response.json()
         new_df = DataFrame(data["data"])
         sorted_columns = sorted(new_df.columns, key=sort_key)
-        new_df = new_df[sorted_columns].apply(lambda col: col.map(replace_small_values))
+        new_df = new_df[sorted_columns].apply(
+            lambda col: col.map(replace_small_values)
+        )
         dataframe = concat(objs=[dataframe, new_df])
 
     dataframe.to_excel(excel_writer=sheetfile, engine="openpyxl", index=False)
