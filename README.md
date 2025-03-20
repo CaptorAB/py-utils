@@ -7,7 +7,7 @@
 # Captor Python utilities
 
 ## Python version
-usee
+
 At Captor we are running python 3.13 at the moment. However, these utilities should run in all versions from 3.10. This project assumes that you will be able to install a compatible version and install the dependencies listed in the requirements.txt file.
 
 ### external_graphql_client.py
