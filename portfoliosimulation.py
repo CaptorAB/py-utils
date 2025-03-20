@@ -55,7 +55,7 @@ if __name__ == "__main__":
         optimized=optimum,
     )
 
-    simfigure, simfile = sharpeplot(
+    _, _ = sharpeplot(
         sim_frame=simulated,
         line_frame=frontier,
         point_frame=plotframe,
