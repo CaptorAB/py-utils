@@ -75,6 +75,8 @@ if __name__ == "__main__":
         "{:%Y-%m-%d}",
     ]
     for item, f in zip(df.index, formats):
-        df.loc[item] = df.loc[item].apply(lambda x: x if isinstance(x, str) else f.format(x))
+        df.loc[item] = df.loc[item].apply(
+            lambda x, fmt=f: x if isinstance(x, str) else fmt.format(x)
+        )
 
     print("\n", df)
