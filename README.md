@@ -10,7 +10,7 @@
 
 At Captor we are running python 3.13 at the moment. However, these utilities should run in all versions from 3.10. This project assumes that you will be able to install a compatible version and install the dependencies listed in the requirements.txt file.
 
-### external_graphql_client.py
+### graphql_client.py
 
 An API client necessary to access the [Captor Graphql API](https://api.captor.se/graphql). It requires that you are a registered user that can be authenticated.
 
