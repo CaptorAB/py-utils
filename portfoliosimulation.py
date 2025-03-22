@@ -1,13 +1,13 @@
 import datetime as dt
+
 from openseries import (
-    OpenTimeSeries,
     OpenFrame,
+    OpenTimeSeries,
+    ReturnSimulation,
     efficient_frontier,
     prepare_plot_data,
     sharpeplot,
-    ReturnSimulation,
 )
-
 
 if __name__ == "__main__":
     seed = 55

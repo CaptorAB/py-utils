@@ -1,6 +1,6 @@
-from openseries import OpenTimeSeries, OpenFrame, ValueType
-from pandas import set_option
 import requests
+from openseries import OpenFrame, OpenTimeSeries, ValueType
+from pandas import set_option
 
 
 def make_fund_basket(positions: dict[str, float], timeout: int = 10) -> OpenFrame:
@@ -27,9 +27,11 @@ def make_fund_basket(positions: dict[str, float], timeout: int = 10) -> OpenFram
             )
 
     if len(set(positions.keys()) - found) != 0:
-        raise ValueError(
-            f"Request for NAV series failed. Missing ISINs are: {set(positions.keys()) - found}"
+        msg = (
+            "Request for NAV series failed. "
+            f"Missing ISINs are: {set(positions.keys()) - found}"
         )
+        raise ValueError(msg)
 
     return OpenFrame(constituents=series, weights=weights)
 
@@ -81,7 +83,7 @@ if __name__ == "__main__":
         "{:%Y-%m-%d}",
         "{:%Y-%m-%d}",
     ]
-    for item, f in zip(df.index, formats):
+    for item, f in zip(df.index, formats, strict=False):
         df.loc[item] = df.loc[item].apply(
             lambda x, fmt=f: x if isinstance(x, str) else fmt.format(x)
         )

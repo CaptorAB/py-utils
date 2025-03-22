@@ -11,11 +11,11 @@ from werkzeug.serving import make_server
 from werkzeug.wrappers import Request, Response
 
 
-class DatabaseChoiceException(Exception):
+class DatabaseChoiceError(Exception):
     pass
 
 
-class NoInternetException(Exception):
+class NoInternetError(Exception):
     pass
 
 
@@ -71,7 +71,7 @@ def get_token_from_file(db: str, filename: str) -> str:
         token = dot_config["tokens"][db]["token"]
     except KeyError as exc:
         msg = "Can only handle database equal to 'prod' or 'test'."
-        raise DatabaseChoiceException(msg) from exc
+        raise DatabaseChoiceError(msg) from exc
 
     print("get_token_from_file()")
     return token
@@ -86,7 +86,7 @@ def token_get_server(db: str, base_url: str, filename: str, port: int = 5678) ->
         url_str = "test"
     else:
         msg = "Can only handle database equal to 'prod' or 'test'."
-        raise DatabaseChoiceException(msg)
+        raise DatabaseChoiceError(msg)
 
     if check_internet():
         webbrowser.open(
@@ -98,7 +98,7 @@ def token_get_server(db: str, base_url: str, filename: str, port: int = 5678) ->
         )
     else:
         msg = "No internet connection."
-        raise NoInternetException(msg)
+        raise NoInternetError(msg)
 
     @Request.application
     def app(request: Request) -> Response:
@@ -136,7 +136,7 @@ def token_get_server(db: str, base_url: str, filename: str, port: int = 5678) ->
 def browser_get_token(db: str, base_url: str, filename: str, timeout: int = 10) -> str:
     try:
         token = get_token_from_file(db=db, filename=filename)
-    except (FileNotFoundError, DatabaseChoiceException) as exc:
+    except (FileNotFoundError, DatabaseChoiceError) as exc:
         print(f"Getting token from file failed: {exc}")
         token = token_get_server(db=db, base_url=base_url, filename=filename)
 
@@ -152,7 +152,7 @@ def browser_get_token(db: str, base_url: str, filename: str, timeout: int = 10) 
         token = token_get_server(db=db, base_url=base_url, filename=filename)
     except requests.ConnectionError as excc:
         msg = "No internet connection."
-        raise NoInternetException(msg) from excc
+        raise NoInternetError(msg) from excc
 
     return token
 
@@ -177,7 +177,7 @@ class ExternalGraphQLClient:
             url_str = "test"
         else:
             msg = "Can only handle database prod or test."
-            raise DatabaseChoiceException(msg)
+            raise DatabaseChoiceError(msg)
 
         self.url = f"https://{url_str}api.{base_url}/graphql"
 

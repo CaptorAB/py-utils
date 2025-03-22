@@ -3,6 +3,9 @@ __pycache__/
 # Environments
 /venv/
 
+# Coverage
+.coverage
+
 # Pycharm
 .idea/*
 
