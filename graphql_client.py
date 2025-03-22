@@ -102,7 +102,7 @@ def token_get_server(db: str, base_url: str, filename: str, port: int = 5678) ->
 
     @Request.application
     def app(request: Request) -> Response:
-        q.put(request.args["api_key"])
+        queue.put(request.args["api_key"])
         return Response(
             response=""" <!DOCTYPE html>
                          <html lang="en-US">
@@ -121,14 +121,14 @@ def token_get_server(db: str, base_url: str, filename: str, port: int = 5678) ->
             content_type="text/html; charset=UTF-8",
         )
 
-    q = Queue()
-    s = make_server(host="localhost", port=port, app=app)
-    t = threading.Thread(target=s.serve_forever)
-    t.start()
-    token = q.get(block=True)
+    queue = Queue()
+    server = make_server(host="localhost", port=port, app=app)
+    thread = threading.Thread(target=server.serve_forever)
+    thread.start()
+    token = queue.get(block=True)
     write_token_to_file(jwt_token=token, filename=filename)
-    s.shutdown()
-    t.join()
+    server.shutdown()
+    thread.join()
 
     return token
 
@@ -157,7 +157,7 @@ def browser_get_token(db: str, base_url: str, filename: str, timeout: int = 10) 
     return token
 
 
-class ExternalGraphQLClient:
+class GraphQLClient:
     def __init__(self, database: str = "prod", base_url: str = "captor.se") -> None:
         filename = f".{base_url.split(sep='.')[0]}"
         self.token = browser_get_token(
@@ -183,7 +183,7 @@ class ExternalGraphQLClient:
 
     def query(
         self,
-        gql_query: str,
+        query_string: str,
         variables: dict | None = None,
         timeout: int = 10,
         *,
@@ -193,7 +193,7 @@ class ExternalGraphQLClient:
             "Authorization": f"Bearer {self.token}",
             "accept-encoding": "gzip",
         }
-        data = {"query": gql_query}
+        data = {"query": query_string}
 
         if variables:
             data["variables"] = variables

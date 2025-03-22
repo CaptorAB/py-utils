@@ -1,6 +1,6 @@
 from pprint import pformat
 
-from graphql_client import ExternalGraphQLClient
+from graphql_client import GraphQLClient
 
 
 class GraphqlError(Exception):
@@ -8,7 +8,7 @@ class GraphqlError(Exception):
 
 
 if __name__ == "__main__":
-    gql = ExternalGraphQLClient()
+    gql = GraphQLClient()
 
     my_query = """ query parties($nameIn: [String!]) {
                      parties(filter: {nameIn: $nameIn}) {
@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     my_variables = {"nameIn": "Captor Iris Bond"}
 
-    output, outputerrors = gql.query(gql_query=my_query, variables=my_variables)
+    output, outputerrors = gql.query(query_string=my_query, variables=my_variables)
 
     if outputerrors:
         raise GraphqlError(str(outputerrors))
