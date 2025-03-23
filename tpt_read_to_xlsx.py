@@ -80,11 +80,11 @@ def download_fund_tpt_report(
     if directory:
         dirpath = directory
     elif Path.home().joinpath("Documents").exists():
-        dirpath = Path.home() / "Documents"
+        dirpath = Path.home().joinpath("Documents")
     else:
         dirpath = Path(stack()[1].filename).parent
 
-    sheetfile = dirpath / filename
+    sheetfile = dirpath.joinpath(filename)
     dataframe.to_excel(excel_writer=sheetfile, engine="openpyxl", index=False)
 
     if sheetfile.exists():
