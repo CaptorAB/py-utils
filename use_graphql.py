@@ -2,7 +2,7 @@
 
 from pprint import pformat
 
-from graphql_client import GraphQLClient
+from graphql_client import GraphqlClient
 
 
 class GraphqlError(Exception):
@@ -10,7 +10,7 @@ class GraphqlError(Exception):
 
 
 if __name__ == "__main__":
-    gql = GraphQLClient()
+    gql = GraphqlClient()
 
     my_query = """ query parties($nameIn: [String!]) {
                      parties(filter: {nameIn: $nameIn}) {

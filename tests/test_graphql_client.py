@@ -233,7 +233,7 @@ def test_external_graphql_client_success(
         patch("graphql_client._browser_get_token", return_value=dummy_token),
         patch("jwt.decode", return_value=dummy_decoded),
     ):
-        client = graphql_client.GraphQLClient("prod", "captor.se")
+        client = graphql_client.GraphqlClient("prod", "captor.se")
         if client.database != "prod" or "graphql" not in client.url:
             raise GraphqlClientTestError(TESTERRORMESSAGE)
 
@@ -241,7 +241,7 @@ def test_external_graphql_client_success(
 def test_external_graphql_client_invalid_db() -> None:
     """Test that GraphQLClient raises DatabaseChoiceError on invalid database input."""
     try:
-        graphql_client.GraphQLClient("invalid", "captor.se")
+        graphql_client.GraphqlClient("invalid", "captor.se")
     except graphql_client.DatabaseChoiceError:
         return
     raise GraphqlClientTestError(TESTERRORMESSAGE)
@@ -256,7 +256,7 @@ def test_external_graphql_query_success(
         patch("graphql_client._browser_get_token", return_value=dummy_token),
         patch("jwt.decode", return_value=dummy_decoded),
     ):
-        client = graphql_client.GraphQLClient("prod", "captor.se")
+        client = graphql_client.GraphqlClient("prod", "captor.se")
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -278,7 +278,7 @@ def test_external_graphql_query_http_error(
         patch("graphql_client._browser_get_token", return_value=dummy_token),
         patch("jwt.decode", return_value=dummy_decoded),
     ):
-        client = graphql_client.GraphQLClient("prod", "captor.se")
+        client = graphql_client.GraphqlClient("prod", "captor.se")
 
         mock_response = MagicMock()
         mock_response.raise_for_status.side_effect = requests.HTTPError("boom")

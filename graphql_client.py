@@ -13,7 +13,7 @@ import requests
 from werkzeug.serving import make_server
 from werkzeug.wrappers import Request, Response
 
-__all__ = ["GraphQLClient"]
+__all__ = ["GraphqlClient"]
 
 basicConfig(level=INFO)
 logger = getLogger(__name__)
@@ -254,7 +254,7 @@ def _browser_get_token(
     return token
 
 
-class GraphQLClient:
+class GraphqlClient:
     """Captor Graphql Client.
 
     Class used to authenticate a user and allow it to fetch data from the
