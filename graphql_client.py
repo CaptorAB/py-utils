@@ -175,7 +175,7 @@ def _token_get_server(db: str, base_url: str, filename: str, port: int = 5678) -
     @Request.application
     def app(request: Request) -> Response:
         """Local HTTP handler to receive the API key from the browser."""
-        queue.put(request.args["api_key"])
+        queue.put(item=request.args["api_key"])
         return Response(
             response=""" <!DOCTYPE html>
                          <html lang=\"en-US\">

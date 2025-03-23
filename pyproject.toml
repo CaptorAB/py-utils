@@ -40,7 +40,7 @@ repository = "https://github.com/CaptorAB/py-utils"
 
 [tool.coverage.run]
 branch = true
-omit = ["venv/*"]
+omit = ["venv/*", "tests/*"]
 
 [tool.coverage.report]
 skip_empty = true

@@ -59,7 +59,7 @@ def test_check_internet_failure() -> None:
 
 def test_get_dot_config_file_name() -> None:
     """Test that the returned path includes the given filename."""
-    result = graphql_client._get_dot_config_file_name("testfile")
+    result = graphql_client._get_dot_config_file_name(filename="testfile")
     if not isinstance(result, Path) or not str(result).endswith("testfile"):
         raise GraphqlClientTestError(TESTERRORMESSAGE)
 
@@ -83,14 +83,16 @@ def test_write_token_and_get_token(
         patch("graphql_client._get_dot_config_file_name", return_value=file_path),
         patch("jwt.decode", return_value=dummy_decoded),
     ):
-        graphql_client._write_token_to_file(dummy_token, "config.json")
+        graphql_client._write_token_to_file(
+            jwt_token=dummy_token, filename="config.json"
+        )
 
         with file_path.open() as f:
             data = json.load(f)
             if "prod" not in data["tokens"]:
                 raise GraphqlClientTestError(TESTERRORMESSAGE)
 
-        result = graphql_client._get_token_from_file("prod", "config.json")
+        result = graphql_client._get_token_from_file(db="prod", filename="config.json")
         if result != dummy_token:
             raise GraphqlClientTestError(TESTERRORMESSAGE)
 
@@ -102,7 +104,7 @@ def test_get_token_from_file_missing_file() -> None:
         return_value=Path("nonexistent.json"),
     ):
         try:
-            graphql_client._get_token_from_file("prod", "nonexistent.json")
+            graphql_client._get_token_from_file(db="prod", filename="nonexistent.json")
         except FileNotFoundError:
             return
         raise GraphqlClientTestError(TESTERRORMESSAGE)
@@ -111,11 +113,11 @@ def test_get_token_from_file_missing_file() -> None:
 def test_get_token_from_file_missing_db(tmp_path: Path) -> None:
     """Test that DatabaseChoiceError is raised for missing database entry."""
     file_path = tmp_path.joinpath("config.json")
-    file_path.write_text(json.dumps({"tokens": {"test": {"token": "123"}}}))
+    file_path.write_text(data=json.dumps({"tokens": {"test": {"token": "123"}}}))
 
     with patch("graphql_client._get_dot_config_file_name", return_value=file_path):
         try:
-            graphql_client._get_token_from_file("prod", "config.json")
+            graphql_client._get_token_from_file(db="prod", filename="config.json")
         except graphql_client.DatabaseChoiceError:
             return
         raise GraphqlClientTestError(TESTERRORMESSAGE)
@@ -140,13 +142,15 @@ def test_token_get_server_valid_flow(
         patch("threading.Thread") as thread_patch,
     ):
         q = Queue()
-        q.put(dummy_token)
+        q.put(item=dummy_token)
         queue_patch.return_value = q
 
         server_patch.return_value = MagicMock()
         thread_patch.return_value = MagicMock()
 
-        result = graphql_client._token_get_server("prod", "captor.se", "token.json")
+        result = graphql_client._token_get_server(
+            db="prod", base_url="captor.se", filename="token.json"
+        )
         if result != dummy_token:
             raise GraphqlClientTestError(TESTERRORMESSAGE)
 
@@ -154,7 +158,9 @@ def test_token_get_server_valid_flow(
 def test_token_get_server_invalid_db() -> None:
     """Test that DatabaseChoiceError is raised for an invalid database input."""
     try:
-        graphql_client._token_get_server("invalid", "base", "file")
+        graphql_client._token_get_server(
+            db="invalid", base_url="base", filename="file"
+        )
     except graphql_client.DatabaseChoiceError:
         return
     raise GraphqlClientTestError(TESTERRORMESSAGE)
@@ -164,7 +170,9 @@ def test_token_get_server_no_internet() -> None:
     """Test that NoInternetError is raised when no internet connection is detected."""
     with patch("graphql_client._check_internet", return_value=False):
         try:
-            graphql_client._token_get_server("prod", "base", "file")
+            graphql_client._token_get_server(
+                db="prod", base_url="base", filename="file"
+            )
         except graphql_client.NoInternetError:
             return
         raise GraphqlClientTestError(TESTERRORMESSAGE)
@@ -179,7 +187,9 @@ def test_browser_get_token_from_file(dummy_token: str) -> None:
             return_value=MagicMock(status_code=200, raise_for_status=lambda: None),
         ),
     ):
-        result = graphql_client._browser_get_token("prod", "captor.se", ".captor")
+        result = graphql_client._browser_get_token(
+            db="prod", base_url="captor.se", filename=".captor"
+        )
         if result != dummy_token:
             raise GraphqlClientTestError(TESTERRORMESSAGE)
 
@@ -194,7 +204,9 @@ def test_browser_get_token_fallback_success(dummy_token: str) -> None:
             return_value=MagicMock(status_code=200, raise_for_status=lambda: None),
         ),
     ):
-        result = graphql_client._browser_get_token("prod", "captor.se", ".captor")
+        result = graphql_client._browser_get_token(
+            db="prod", base_url="captor.se", filename=".captor"
+        )
         if result != dummy_token:
             raise GraphqlClientTestError(TESTERRORMESSAGE)
 
@@ -206,7 +218,9 @@ def test_browser_get_token_refresh_on_http_error(dummy_token: str) -> None:
         patch("requests.get", side_effect=requests.HTTPError("bad token")),
         patch("graphql_client._token_get_server", return_value="new_token"),
     ):
-        result = graphql_client._browser_get_token("prod", "captor.se", ".captor")
+        result = graphql_client._browser_get_token(
+            db="prod", base_url="captor.se", filename=".captor"
+        )
         if result != "new_token":
             raise GraphqlClientTestError(TESTERRORMESSAGE)
 
@@ -218,7 +232,9 @@ def test_browser_get_token_connection_error(dummy_token: str) -> None:
         patch("requests.get", side_effect=requests.ConnectionError),
     ):
         try:
-            graphql_client._browser_get_token("prod", "captor.se", ".captor")
+            graphql_client._browser_get_token(
+                db="prod", base_url="captor.se", filename=".captor"
+            )
         except graphql_client.NoInternetError:
             return
         raise GraphqlClientTestError(TESTERRORMESSAGE)
@@ -233,7 +249,7 @@ def test_external_graphql_client_success(
         patch("graphql_client._browser_get_token", return_value=dummy_token),
         patch("jwt.decode", return_value=dummy_decoded),
     ):
-        client = graphql_client.GraphqlClient("prod", "captor.se")
+        client = graphql_client.GraphqlClient(database="prod", base_url="captor.se")
         if client.database != "prod" or "graphql" not in client.url:
             raise GraphqlClientTestError(TESTERRORMESSAGE)
 
@@ -241,7 +257,7 @@ def test_external_graphql_client_success(
 def test_external_graphql_client_invalid_db() -> None:
     """Test that GraphQLClient raises DatabaseChoiceError on invalid database input."""
     try:
-        graphql_client.GraphqlClient("invalid", "captor.se")
+        graphql_client.GraphqlClient(database="invalid", base_url="captor.se")
     except graphql_client.DatabaseChoiceError:
         return
     raise GraphqlClientTestError(TESTERRORMESSAGE)
@@ -256,7 +272,7 @@ def test_external_graphql_query_success(
         patch("graphql_client._browser_get_token", return_value=dummy_token),
         patch("jwt.decode", return_value=dummy_decoded),
     ):
-        client = graphql_client.GraphqlClient("prod", "captor.se")
+        client = graphql_client.GraphqlClient(database="prod", base_url="captor.se")
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -278,7 +294,7 @@ def test_external_graphql_query_http_error(
         patch("graphql_client._browser_get_token", return_value=dummy_token),
         patch("jwt.decode", return_value=dummy_decoded),
     ):
-        client = graphql_client.GraphqlClient("prod", "captor.se")
+        client = graphql_client.GraphqlClient(database="prod", base_url="captor.se")
 
         mock_response = MagicMock()
         mock_response.raise_for_status.side_effect = requests.HTTPError("boom")
