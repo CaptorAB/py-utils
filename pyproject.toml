@@ -27,18 +27,16 @@ classifiers = [
 ]
 
 dependencies = [
+    "coverage (>=7.2.7,<9.0.0)",
     "openseries (>=1.8.0)",
     "pyjwt (>=2.10.1,<3.0.0)",
+    "pytest (>=8.2.2,<9.0.0)",
+    "ruff (>=0.11.2)",
     "werkzeug (>=3.1.3,<4.0.0)",
 ]
 
 [project.urls]
 repository = "https://github.com/CaptorAB/py-utils"
-
-[tool.poetry.group.dev.dependencies]
-coverage = ">=7.2.7,<9.0.0"
-pytest = ">=8.2.2,<9.0.0"
-ruff = ">=0.11.2"
 
 [tool.coverage.run]
 branch = true
@@ -53,5 +51,5 @@ line-length = 87
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["ANN001", "ANN201", "ARG001", "COM812", "D", "EM101", "EM102", "N999", "PD901", "T201", "TRY003"]
+ignore = ["COM812", "D203", "D213", "N999", "SLF001"]
 fixable = ["ALL"]

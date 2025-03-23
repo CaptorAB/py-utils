@@ -1,11 +1,33 @@
+"""openseries examples."""
+
 import requests
 from openseries import OpenFrame, OpenTimeSeries, ValueType
 from pandas import set_option
 
 
+class MissingIsinsError(Exception):
+    """Raised when make_fund_basket does not return timeseries for all ISINs."""
+
+
 def make_fund_basket(positions: dict[str, float], timeout: int = 10) -> OpenFrame:
+    """Create an OpenFrame basket of funds based on provided ISIN positions.
+
+    Args:
+        positions (dict[str, float]): Dictionary of ISINs and their corresponding
+            weights.
+        timeout (int): Timeout in seconds for the HTTP request. Defaults to 10.
+
+    Returns:
+        OpenFrame: An OpenFrame object containing the weighted fund time series.
+
+    Raises:
+        MissingIsinsError: If any ISINs from the input positions are missing in the
+            fetched data.
+
+    """
     response = requests.get(
-        url="https://api.captor.se/public/api/nav", timeout=timeout
+        url="https://api.captor.se/public/api/nav",
+        timeout=timeout,
     )
     response.raise_for_status()
 
@@ -23,7 +45,7 @@ def make_fund_basket(positions: dict[str, float], timeout: int = 10) -> OpenFram
                     dates=data["dates"],
                     values=data["navPerUnit"],
                     valuetype=ValueType.PRICE,
-                )
+                ),
             )
 
     if len(set(positions.keys()) - found) != 0:
@@ -31,7 +53,7 @@ def make_fund_basket(positions: dict[str, float], timeout: int = 10) -> OpenFram
             "Request for NAV series failed. "
             f"Missing ISINs are: {set(positions.keys()) - found}"
         )
-        raise ValueError(msg)
+        raise MissingIsinsError(msg)
 
     return OpenFrame(constituents=series, weights=weights)
 
@@ -56,10 +78,11 @@ if __name__ == "__main__":
     basket.add_timeseries(portfolio)
 
     figure, plotfile = basket.plot_series(
-        tick_fmt=".1%", filename="portfolioplot.html"
+        tick_fmt=".1%",
+        filename="portfolioplot.html",
     )
 
-    df = basket.all_properties(
+    prop_df = basket.all_properties(
         properties=[
             "arithmetic_ret",
             "vol",
@@ -69,9 +92,9 @@ if __name__ == "__main__":
             "cvar_down",
             "first_indices",
             "last_indices",
-        ]
+        ],
     )
-    df.columns = df.columns.droplevel(level=1)
+    prop_df.columns = prop_df.columns.droplevel(level=1)
 
     formats = [
         "{:.2%}",
@@ -83,9 +106,9 @@ if __name__ == "__main__":
         "{:%Y-%m-%d}",
         "{:%Y-%m-%d}",
     ]
-    for item, f in zip(df.index, formats, strict=False):
-        df.loc[item] = df.loc[item].apply(
-            lambda x, fmt=f: x if isinstance(x, str) else fmt.format(x)
+    for item, f in zip(prop_df.index, formats, strict=False):
+        prop_df.loc[item] = prop_df.loc[item].apply(
+            lambda x, fmt=f: x if isinstance(x, str) else fmt.format(x),
         )
 
-    print("\n", df)
+    print("\n", prop_df)  # noqa: T201

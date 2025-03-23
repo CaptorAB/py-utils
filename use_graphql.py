@@ -1,10 +1,12 @@
+"""Example code for how to fetch data from the Captor Graphql API."""
+
 from pprint import pformat
 
 from graphql_client import GraphQLClient
 
 
 class GraphqlError(Exception):
-    pass
+    """Raised if the Graphql query returns any error(s)."""
 
 
 if __name__ == "__main__":
@@ -17,11 +19,11 @@ if __name__ == "__main__":
                      }
                    } """
 
-    my_variables = {"nameIn": "Captor Iris Bond"}
+    my_variables = {"nameIn": ["Captor Iris Bond"]}
 
     output, outputerrors = gql.query(query_string=my_query, variables=my_variables)
 
     if outputerrors:
         raise GraphqlError(str(outputerrors))
 
-    print(pformat(output))
+    print("\n", pformat(output))  # noqa: T201

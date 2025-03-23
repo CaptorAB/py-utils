@@ -1,3 +1,5 @@
+"""Portfolio simulation examples."""
+
 import datetime as dt
 
 from openseries import (
