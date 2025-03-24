@@ -47,6 +47,7 @@ skip_empty = true
 show_missing = true
 
 [tool.ruff]
+target-version = "py313"
 line-length = 87
 
 [tool.ruff.lint]
