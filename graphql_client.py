@@ -322,22 +322,27 @@ class GraphqlClient:
             "Authorization": f"Bearer {self.token}",
             "accept-encoding": "gzip",
         }
-        data = {"query": query_string}
+        json_data = {"query": query_string}
 
         if variables:
-            data["variables"] = variables
+            json_data["variables"] = variables
 
         try:
             response = requests.post(
                 url=self.url,
-                json=data,
+                json=json_data,
                 headers=headers,
                 verify=verify,
                 timeout=timeout,
             )
             response.raise_for_status()
         except requests.HTTPError as exc:
+            logger_message = f"Query execution failed. HTTP error occurred: {exc}"
+            logger.warning(logger_message)
             return None, str(exc)
+        except requests.ConnectionError as excc:
+            msg = "No internet connection."
+            raise NoInternetError(msg) from excc
 
         response_data = response.json()
 
