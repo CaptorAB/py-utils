@@ -14,8 +14,16 @@ import graphql_client
 class GraphqlClientTestError(Exception):
     """Custom exception used for signaling test failures."""
 
+    def __init__(self, message: str = "Code not working as intended.") -> None:
+        """Initialize the GraphqlClientTestError.
 
-TESTERRORMESSAGE = "Code not working as intended."
+        Args:
+            message (str): Exception message.
+                Defaults to 'Code not working as intended.'.
+
+        """
+        self.message = message
+        super().__init__(message)
 
 
 @pytest.fixture
@@ -46,7 +54,7 @@ def test_check_internet_success() -> None:
         mock_connect.return_value = None
         result = graphql_client._check_internet()
         if result is not True:
-            raise GraphqlClientTestError(TESTERRORMESSAGE)
+            raise GraphqlClientTestError
 
 
 def test_check_internet_failure() -> None:
@@ -54,14 +62,14 @@ def test_check_internet_failure() -> None:
     with patch("socket.socket.connect", side_effect=OSError):
         result = graphql_client._check_internet()
         if result is not False:
-            raise GraphqlClientTestError(TESTERRORMESSAGE)
+            raise GraphqlClientTestError
 
 
 def test_get_dot_config_file_name() -> None:
     """Test that the returned path includes the given filename."""
     result = graphql_client._get_dot_config_file_name(filename="testfile")
     if not isinstance(result, Path) or not str(result).endswith("testfile"):
-        raise GraphqlClientTestError(TESTERRORMESSAGE)
+        raise GraphqlClientTestError
 
 
 def test_write_token_and_get_token(
@@ -90,11 +98,11 @@ def test_write_token_and_get_token(
         with file_path.open() as f:
             data = json.load(f)
             if "prod" not in data["tokens"]:
-                raise GraphqlClientTestError(TESTERRORMESSAGE)
+                raise GraphqlClientTestError
 
         result = graphql_client._get_token_from_file(db="prod", filename="config.json")
         if result != dummy_token:
-            raise GraphqlClientTestError(TESTERRORMESSAGE)
+            raise GraphqlClientTestError
 
 
 def test_get_token_from_file_missing_file() -> None:
@@ -107,7 +115,7 @@ def test_get_token_from_file_missing_file() -> None:
             graphql_client._get_token_from_file(db="prod", filename="nonexistent.json")
         except FileNotFoundError:
             return
-        raise GraphqlClientTestError(TESTERRORMESSAGE)
+        raise GraphqlClientTestError
 
 
 def test_get_token_from_file_missing_db(tmp_path: Path) -> None:
@@ -120,7 +128,7 @@ def test_get_token_from_file_missing_db(tmp_path: Path) -> None:
             graphql_client._get_token_from_file(db="prod", filename="config.json")
         except graphql_client.DatabaseChoiceError:
             return
-        raise GraphqlClientTestError(TESTERRORMESSAGE)
+        raise GraphqlClientTestError
 
 
 def test_token_get_server_valid_flow(
@@ -152,7 +160,7 @@ def test_token_get_server_valid_flow(
             db="prod", base_url="captor.se", filename="token.json"
         )
         if result != dummy_token:
-            raise GraphqlClientTestError(TESTERRORMESSAGE)
+            raise GraphqlClientTestError
 
 
 def test_token_get_server_invalid_db() -> None:
@@ -163,7 +171,7 @@ def test_token_get_server_invalid_db() -> None:
         )
     except graphql_client.DatabaseChoiceError:
         return
-    raise GraphqlClientTestError(TESTERRORMESSAGE)
+    raise GraphqlClientTestError
 
 
 def test_token_get_server_no_internet() -> None:
@@ -175,7 +183,7 @@ def test_token_get_server_no_internet() -> None:
             )
         except graphql_client.NoInternetError:
             return
-        raise GraphqlClientTestError(TESTERRORMESSAGE)
+        raise GraphqlClientTestError
 
 
 def test_browser_get_token_from_file(dummy_token: str) -> None:
@@ -191,7 +199,7 @@ def test_browser_get_token_from_file(dummy_token: str) -> None:
             db="prod", base_url="captor.se", filename=".captor"
         )
         if result != dummy_token:
-            raise GraphqlClientTestError(TESTERRORMESSAGE)
+            raise GraphqlClientTestError
 
 
 def test_browser_get_token_fallback_success(dummy_token: str) -> None:
@@ -208,7 +216,7 @@ def test_browser_get_token_fallback_success(dummy_token: str) -> None:
             db="prod", base_url="captor.se", filename=".captor"
         )
         if result != dummy_token:
-            raise GraphqlClientTestError(TESTERRORMESSAGE)
+            raise GraphqlClientTestError
 
 
 def test_browser_get_token_refresh_on_http_error(dummy_token: str) -> None:
@@ -222,7 +230,7 @@ def test_browser_get_token_refresh_on_http_error(dummy_token: str) -> None:
             db="prod", base_url="captor.se", filename=".captor"
         )
         if result != "new_token":
-            raise GraphqlClientTestError(TESTERRORMESSAGE)
+            raise GraphqlClientTestError
 
 
 def test_browser_get_token_connection_error(dummy_token: str) -> None:
@@ -237,7 +245,7 @@ def test_browser_get_token_connection_error(dummy_token: str) -> None:
             )
         except graphql_client.NoInternetError:
             return
-        raise GraphqlClientTestError(TESTERRORMESSAGE)
+        raise GraphqlClientTestError
 
 
 def test_external_graphql_client_success(
@@ -251,7 +259,7 @@ def test_external_graphql_client_success(
     ):
         client = graphql_client.GraphqlClient(database="prod", base_url="captor.se")
         if client.database != "prod" or "graphql" not in client.url:
-            raise GraphqlClientTestError(TESTERRORMESSAGE)
+            raise GraphqlClientTestError
 
 
 def test_external_graphql_client_invalid_db() -> None:
@@ -260,7 +268,7 @@ def test_external_graphql_client_invalid_db() -> None:
         graphql_client.GraphqlClient(database="invalid", base_url="captor.se")
     except graphql_client.DatabaseChoiceError:
         return
-    raise GraphqlClientTestError(TESTERRORMESSAGE)
+    raise GraphqlClientTestError
 
 
 def test_external_graphql_query_success(
@@ -282,7 +290,7 @@ def test_external_graphql_query_success(
         with patch("requests.post", return_value=mock_response):
             data, errors = client.query("query { test }")
             if data != {"result": "ok"} or errors is not None:
-                raise GraphqlClientTestError(TESTERRORMESSAGE)
+                raise GraphqlClientTestError
 
 
 def test_external_graphql_query_http_error(
@@ -302,4 +310,4 @@ def test_external_graphql_query_http_error(
         with patch("requests.post", return_value=mock_response):
             data, errors = client.query("query { test }")
             if data is not None or "boom" not in errors:
-                raise GraphqlClientTestError(TESTERRORMESSAGE)
+                raise GraphqlClientTestError

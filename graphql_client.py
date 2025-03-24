@@ -22,9 +22,33 @@ logger = getLogger(__name__)
 class DatabaseChoiceError(Exception):
     """Raised when an invalid database choice is provided."""
 
+    def __init__(
+        self, message: str = "Can only handle database prod or test."
+    ) -> None:
+        """Initialize the DatabaseChoiceError.
+
+        Args:
+            message (str): Exception message.
+                Defaults to 'Can only handle database prod or test.'.
+
+        """
+        self.message = message
+        super().__init__(message)
+
 
 class NoInternetError(Exception):
     """Raised when there is no internet connectivity."""
+
+    def __init__(self, message: str = "No internet connection.") -> None:
+        """Initialize the NoInternetError.
+
+        Args:
+            message (str): Exception message.
+                Defaults to 'No internet connection.'.
+
+        """
+        self.message = message
+        super().__init__(message)
 
 
 def _check_internet(host: str = "8.8.8.8", port: int = 53, timeout: int = 3) -> bool:
@@ -123,8 +147,7 @@ def _get_token_from_file(db: str, filename: str) -> str:
     try:
         token = dot_config["tokens"][db]["token"]
     except KeyError as exc:
-        msg = "Can only handle database equal to 'prod' or 'test'."
-        raise DatabaseChoiceError(msg) from exc
+        raise DatabaseChoiceError from exc
 
     logger_message = "get_token_from_file()"
     logger.info(logger_message)
@@ -157,8 +180,7 @@ def _token_get_server(db: str, base_url: str, filename: str, port: int = 5678) -
     elif db == "test":
         url_str = "test"
     else:
-        msg = "Can only handle database equal to 'prod' or 'test'."
-        raise DatabaseChoiceError(msg)
+        raise DatabaseChoiceError
 
     if _check_internet():
         webbrowser.open(
@@ -169,8 +191,7 @@ def _token_get_server(db: str, base_url: str, filename: str, port: int = 5678) -
             new=2,
         )
     else:
-        msg = "No internet connection."
-        raise NoInternetError(msg)
+        raise NoInternetError
 
     @Request.application
     def app(request: Request) -> Response:
@@ -248,8 +269,7 @@ def _browser_get_token(
         logger.warning(logger_message)
         token = _token_get_server(db=db, base_url=base_url, filename=filename)
     except requests.ConnectionError as excc:
-        msg = "No internet connection."
-        raise NoInternetError(msg) from excc
+        raise NoInternetError from excc
 
     return token
 
@@ -293,8 +313,7 @@ class GraphqlClient:
         elif self.database == "test":
             url_str = "test"
         else:
-            msg = "Can only handle database prod or test."
-            raise DatabaseChoiceError(msg)
+            raise DatabaseChoiceError
 
         self.url = f"https://{url_str}api.{base_url}/graphql"
 
@@ -341,8 +360,7 @@ class GraphqlClient:
             logger.warning(logger_message)
             return None, str(exc)
         except requests.ConnectionError as excc:
-            msg = "No internet connection."
-            raise NoInternetError(msg) from excc
+            raise NoInternetError from excc
 
         response_data = response.json()
 
