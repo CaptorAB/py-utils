@@ -100,13 +100,13 @@ def _write_token_to_file(jwt_token: str, filename: str) -> None:
     dot_config_file_name = _get_dot_config_file_name(filename=filename)
 
     data = pyjwt.decode(jwt=jwt_token, options={"verify_signature": False})
-    db = data["aud"]
+    database = data["aud"]
     if dot_config_file_name.exists():
         with dot_config_file_name.open(mode="r", encoding="utf-8") as file_handle:
             local_token = json.load(fp=file_handle)
-        local_token["tokens"][db] = {"token": jwt_token, "decoded": data}
+        local_token["tokens"][database] = {"token": jwt_token, "decoded": data}
     else:
-        local_token = {"tokens": {db: {"token": jwt_token, "decoded": data}}}
+        local_token = {"tokens": {database: {"token": jwt_token, "decoded": data}}}
 
     with dot_config_file_name.open(mode="w", encoding="utf-8") as file_handle:
         # noinspection PyTypeChecker
@@ -120,11 +120,11 @@ def _write_token_to_file(jwt_token: str, filename: str) -> None:
     logger.info(logger_message)
 
 
-def _get_token_from_file(db: str, filename: str) -> str:
+def _get_token_from_file(database: str, filename: str) -> str:
     """Read the token from a local file.
 
     Args:
-        db (str): Database identifier.
+        database (str): Database identifier.
         filename (str): File containing the token.
 
     Returns:
@@ -145,7 +145,7 @@ def _get_token_from_file(db: str, filename: str) -> str:
         dot_config = json.load(fp=file_handle)
 
     try:
-        token = dot_config["tokens"][db]["token"]
+        token = dot_config["tokens"][database]["token"]
     except KeyError as exc:
         raise DatabaseChoiceError from exc
 
@@ -155,11 +155,13 @@ def _get_token_from_file(db: str, filename: str) -> str:
     return token
 
 
-def _token_get_server(db: str, base_url: str, filename: str, port: int = 5678) -> str:
+def _token_get_server(
+    database: str, base_url: str, filename: str, port: int = 5678
+) -> str:
     """Start a temporary server to retrieve a token via browser.
 
     Args:
-        db (str): Database name.
+        database (str): Database name.
         base_url (str): Base URL for the authentication service.
         filename (str): File to store the token.
         port (int): Local server port. Defaults to 5678.
@@ -175,9 +177,9 @@ def _token_get_server(db: str, base_url: str, filename: str, port: int = 5678) -
     logger_message = "token_get_server()"
     logger.info(logger_message)
 
-    if db == "prod":
+    if database == "prod":
         url_str = ""
-    elif db == "test":
+    elif database == "test":
         url_str = "test"
     else:
         raise DatabaseChoiceError
@@ -228,7 +230,7 @@ def _token_get_server(db: str, base_url: str, filename: str, port: int = 5678) -
 
 
 def _browser_get_token(
-    db: str,
+    database: str,
     base_url: str,
     filename: str,
     timeout: int = 10,
@@ -236,7 +238,7 @@ def _browser_get_token(
     """Get a valid token from file or trigger browser-based login flow.
 
     Args:
-        db (str): Database name.
+        database (str): Database name.
         base_url (str): Base URL for the authentication service.
         filename (str): Token storage file name.
         timeout (int): Timeout for token verification request.
@@ -249,11 +251,13 @@ def _browser_get_token(
 
     """
     try:
-        token = _get_token_from_file(db=db, filename=filename)
+        token = _get_token_from_file(database=database, filename=filename)
     except (FileNotFoundError, DatabaseChoiceError) as exc:
         logger_message = f"Getting token from file failed: {exc}"
         logger.warning(logger_message)
-        token = _token_get_server(db=db, base_url=base_url, filename=filename)
+        token = _token_get_server(
+            database=database, base_url=base_url, filename=filename
+        )
 
     headers = {"accept": "application/json", "Authorization": f"Bearer {token}"}
 
@@ -267,7 +271,9 @@ def _browser_get_token(
     except requests.HTTPError as exc:
         logger_message = f"Token authorization failed. HTTP error occurred: {exc}"
         logger.warning(logger_message)
-        token = _token_get_server(db=db, base_url=base_url, filename=filename)
+        token = _token_get_server(
+            database=database, base_url=base_url, filename=filename
+        )
     except requests.ConnectionError as excc:
         raise NoInternetError from excc
 
@@ -294,7 +300,7 @@ class GraphqlClient:
         """
         filename = f".{base_url.split(sep='.')[0]}"
         self.token = _browser_get_token(
-            db=database,
+            database=database,
             base_url=base_url,
             filename=filename,
         )
@@ -336,6 +342,9 @@ class GraphqlClient:
         Returns:
             tuple: Tuple of (data, errors) from the query result.
 
+        Raises:
+            NoInternetError: If internet is not available.
+
         """
         headers = {
             "Authorization": f"Bearer {self.token}",
@@ -368,3 +377,55 @@ class GraphqlClient:
         errors = response_data.get("errors", None)
 
         return data, errors
+
+
+def get_token(
+    database: str,
+    username: str,
+    password: str,
+    url: str = "https://auth.captor.se/token",
+    timeout: int = 10,
+) -> str | None:
+    """Get a token with a username and password as authentication.
+
+    Args:
+        database (str): Database identifier.
+        username (str): Username.
+        password (str): Password.
+        url (str): Web site address / url.
+            Defaults to 'https://auth.captor.se/token'
+        timeout (int): Timeout in seconds. Defaults to 10.
+
+    Returns:
+        str: Token string.
+
+    Raises:
+        DatabaseChoiceError: If the database is not supported.
+        NoInternetError: If internet is not available.
+
+    """
+    if database not in ["prod", "test"]:
+        raise DatabaseChoiceError
+
+    try:
+        response = requests.post(
+            url=url,
+            data={
+                "client_id": database,
+                "username": username,
+                "password": password,
+                "grant_type": "password",
+            },
+            timeout=timeout,
+        )
+        result: str = response.json().get("access_token", None)
+    except requests.HTTPError as exc:
+        logger_message = (
+            f"POST https://auth.captor.se/token failed. HTTP error occurred: {exc}"
+        )
+        logger.warning(logger_message)
+        return None
+    except requests.ConnectionError as excc:
+        raise NoInternetError from excc
+    else:
+        return result
