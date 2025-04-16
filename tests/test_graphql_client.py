@@ -100,7 +100,7 @@ def test_write_token_and_get_token(
             if "prod" not in data["tokens"]:
                 raise GraphqlClientTestError
 
-        result = graphql_client._get_token_from_file(db="prod", filename="config.json")
+        result = graphql_client._get_token_from_file(database="prod", filename="config.json")
         if result != dummy_token:
             raise GraphqlClientTestError
 
@@ -112,7 +112,7 @@ def test_get_token_from_file_missing_file() -> None:
         return_value=Path("nonexistent.json"),
     ):
         try:
-            graphql_client._get_token_from_file(db="prod", filename="nonexistent.json")
+            graphql_client._get_token_from_file(database="prod", filename="nonexistent.json")
         except FileNotFoundError:
             return
         raise GraphqlClientTestError
@@ -125,7 +125,7 @@ def test_get_token_from_file_missing_db(tmp_path: Path) -> None:
 
     with patch("graphql_client._get_dot_config_file_name", return_value=file_path):
         try:
-            graphql_client._get_token_from_file(db="prod", filename="config.json")
+            graphql_client._get_token_from_file(database="prod", filename="config.json")
         except graphql_client.DatabaseChoiceError:
             return
         raise GraphqlClientTestError
@@ -157,7 +157,7 @@ def test_token_get_server_valid_flow(
         thread_patch.return_value = MagicMock()
 
         result = graphql_client._token_get_server(
-            db="prod", base_url="captor.se", filename="token.json"
+            database="prod", base_url="captor.se", filename="token.json"
         )
         if result != dummy_token:
             raise GraphqlClientTestError
@@ -167,7 +167,7 @@ def test_token_get_server_invalid_db() -> None:
     """Test that DatabaseChoiceError is raised for an invalid database input."""
     try:
         graphql_client._token_get_server(
-            db="invalid", base_url="base", filename="file"
+            database="invalid", base_url="base", filename="file"
         )
     except graphql_client.DatabaseChoiceError:
         return
@@ -179,7 +179,7 @@ def test_token_get_server_no_internet() -> None:
     with patch("graphql_client._check_internet", return_value=False):
         try:
             graphql_client._token_get_server(
-                db="prod", base_url="base", filename="file"
+                database="prod", base_url="base", filename="file"
             )
         except graphql_client.NoInternetError:
             return
@@ -196,7 +196,7 @@ def test_browser_get_token_from_file(dummy_token: str) -> None:
         ),
     ):
         result = graphql_client._browser_get_token(
-            db="prod", base_url="captor.se", filename=".captor"
+            database="prod", base_url="captor.se", filename=".captor"
         )
         if result != dummy_token:
             raise GraphqlClientTestError
@@ -213,7 +213,7 @@ def test_browser_get_token_fallback_success(dummy_token: str) -> None:
         ),
     ):
         result = graphql_client._browser_get_token(
-            db="prod", base_url="captor.se", filename=".captor"
+            database="prod", base_url="captor.se", filename=".captor"
         )
         if result != dummy_token:
             raise GraphqlClientTestError
@@ -227,7 +227,7 @@ def test_browser_get_token_refresh_on_http_error(dummy_token: str) -> None:
         patch("graphql_client._token_get_server", return_value="new_token"),
     ):
         result = graphql_client._browser_get_token(
-            db="prod", base_url="captor.se", filename=".captor"
+            database="prod", base_url="captor.se", filename=".captor"
         )
         if result != "new_token":
             raise GraphqlClientTestError
@@ -241,7 +241,7 @@ def test_browser_get_token_connection_error(dummy_token: str) -> None:
     ):
         try:
             graphql_client._browser_get_token(
-                db="prod", base_url="captor.se", filename=".captor"
+                database="prod", base_url="captor.se", filename=".captor"
             )
         except graphql_client.NoInternetError:
             return

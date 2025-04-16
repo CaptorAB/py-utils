@@ -2,12 +2,7 @@
 
 from pprint import pformat
 
-from graphql_client import GraphqlClient
-
-
-class GraphqlError(Exception):
-    """Raised if the Graphql query returns any error(s)."""
-
+from graphql_client import GraphqlClient, GraphqlError
 
 if __name__ == "__main__":
     gql = GraphqlClient()

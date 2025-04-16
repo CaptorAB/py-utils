@@ -13,10 +13,14 @@ import requests
 from werkzeug.serving import make_server
 from werkzeug.wrappers import Request, Response
 
-__all__ = ["GraphqlClient"]
+__all__ = ["GraphqlClient", "GraphqlError"]
 
 basicConfig(level=INFO)
 logger = getLogger(__name__)
+
+
+class GraphqlError(Exception):
+    """Raised if the Graphql query returns any error(s)."""
 
 
 class DatabaseChoiceError(Exception):
