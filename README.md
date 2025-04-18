@@ -29,3 +29,19 @@ Contains an example of how to extract timeseries data of NAV prices for Captor f
 ### portfoliosimulation.py
 
 Contains an example on how to use openseries to simulate portfolios.
+
+## attribution.py
+
+Contains functions that fetch data on Captor funds to be used to do grouped instruments performance attribution. 
+The function that performs the calculation contains three different methods to link cumulative returns. 
+Use 'simple' for shorter time periods and one of the other methods for longer periods.
+The output is visualized in a Plotly area diagramme. 
+Below are examples of how to use. The files can be amended for other funds as needed.
+
+### aster_short.py
+
+Utilises the attribution.py module to do performance analysis on the fund Captor Aster Global Credit Short-Term.
+
+### iris_bond.py
+
+Utilises the attribution.py module to do performance analysis on the fund Captor Iris Bond.
