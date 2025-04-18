@@ -100,7 +100,9 @@ def test_write_token_and_get_token(
             if "prod" not in data["tokens"]:
                 raise GraphqlClientTestError
 
-        result = graphql_client._get_token_from_file(database="prod", filename="config.json")
+        result = graphql_client._get_token_from_file(
+            database="prod", filename="config.json"
+        )
         if result != dummy_token:
             raise GraphqlClientTestError
 
@@ -112,7 +114,9 @@ def test_get_token_from_file_missing_file() -> None:
         return_value=Path("nonexistent.json"),
     ):
         try:
-            graphql_client._get_token_from_file(database="prod", filename="nonexistent.json")
+            graphql_client._get_token_from_file(
+                database="prod", filename="nonexistent.json"
+            )
         except FileNotFoundError:
             return
         raise GraphqlClientTestError
@@ -125,7 +129,9 @@ def test_get_token_from_file_missing_db(tmp_path: Path) -> None:
 
     with patch("graphql_client._get_dot_config_file_name", return_value=file_path):
         try:
-            graphql_client._get_token_from_file(database="prod", filename="config.json")
+            graphql_client._get_token_from_file(
+                database="prod", filename="config.json"
+            )
         except graphql_client.DatabaseChoiceError:
             return
         raise GraphqlClientTestError

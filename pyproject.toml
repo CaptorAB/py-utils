@@ -52,5 +52,19 @@ line-length = 87
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["COM812", "D203", "D213", "N999", "SLF001"]
+allowed-confusables = ["−"]
+ignore = ["COM812", "D203", "D213", "DTZ011", "N815", "N999", "PD011", "SLF001"]
 fixable = ["ALL"]
+
+[tool.ruff.lint.pylint]
+max-args = 10
+max-branches = 17
+
+[tool.ruff.lint.mccabe]
+max-complexity = 17
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:holidays.*"
+]
