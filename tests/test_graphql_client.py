@@ -1,5 +1,7 @@
 """Test suite for the graphql_client.py module."""
 
+# ruff: noqa: ANN001, ARG001
+
 import json
 from pathlib import Path
 from queue import Queue
@@ -269,7 +271,7 @@ def test_external_graphql_client_success(
 
 
 def test_external_graphql_client_invalid_db() -> None:
-    """Test that GraphQLClient raises DatabaseChoiceError on invalid database input."""
+    """Test that GraphQLClient raises DatabaseChoiceError on invalid database."""
     try:
         graphql_client.GraphqlClient(database="invalid", base_url="captor.se")
     except graphql_client.DatabaseChoiceError:
@@ -317,3 +319,205 @@ def test_external_graphql_query_http_error(
             data, errors = client.query("query { test }")
             if data is not None or "boom" not in errors:
                 raise GraphqlClientTestError
+
+
+@pytest.fixture
+def dummy_decoded_test() -> dict[str, str]:
+    """Fixture that provides a decoded dummy JWT token for the 'test' database.
+
+    Returns:
+        dict[str, str]: Decoded token content with 'aud' and 'unique_name'.
+
+    """
+    return {"aud": "test", "unique_name": "tester2"}
+
+
+def test_write_token_to_file_merge_branch(
+    tmp_path, dummy_decoded_test, dummy_token
+) -> None:
+    """Test merging behavior in _write_token_to_file when a config file already exists.
+
+    Args:
+        tmp_path (Path): Temporary filesystem path fixture.
+        dummy_decoded_test (dict[str, str]): Decoded token for 'test'.
+        dummy_token (str): Dummy JWT token.
+
+    """
+    file_path = tmp_path / "config.json"
+    initial = {"tokens": {"test": {"token": "old.token", "decoded": {}}}}
+    file_path.write_text(json.dumps(initial))
+
+    with (
+        patch("jwt.decode", return_value=dummy_decoded_test),
+        patch("graphql_client._get_dot_config_file_name", return_value=file_path),
+    ):
+        graphql_client._write_token_to_file(
+            jwt_token=dummy_token, filename="config.json"
+        )
+
+    data = json.loads(file_path.read_text())
+    msg = "Merged token for 'test' not updated correctly."
+
+    if "test" not in data["tokens"] or data["tokens"]["test"]["token"] != dummy_token:
+        raise GraphqlClientTestError(msg)
+
+
+def test_query_with_variables_and_verify_false(dummy_token, dummy_decoded) -> None:
+    """Test GraphqlClient.query with variables and verify=False.
+
+    Query should return no data or errors for an empty response.
+
+    Args:
+        dummy_token (str): Dummy JWT token.
+        dummy_decoded (dict[str, str]): Decoded token for 'prod'.
+
+    """
+    client = graphql_client.GraphqlClient.__new__(graphql_client.GraphqlClient)
+    client.token = dummy_token
+    client.url = "http://example.com/graphql"
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {}
+    mock_resp.raise_for_status = lambda: None
+
+    with patch("requests.post", return_value=mock_resp) as mock_post:
+        data, errors = client.query("query String", variables={"a": 1}, verify=False)
+
+    mock_post.assert_called_once_with(
+        url=client.url,
+        json={"query": "query String", "variables": {"a": 1}},
+        headers={"Authorization": f"Bearer {dummy_token}", "accept-encoding": "gzip"},
+        verify=False,
+        timeout=10,
+    )
+
+    msg = "Expected no data or errors for empty response."
+    if data is not None or errors is not None:
+        raise GraphqlClientTestError(msg)
+
+
+def test_query_connection_error(dummy_token, dummy_decoded) -> None:
+    """Test GraphqlClient.query raises NoInternetError on ConnectionError.
+
+    Args:
+        dummy_token (str): Dummy JWT token.
+        dummy_decoded (dict[str, str]): Decoded token for 'prod'.
+
+    """
+    client = graphql_client.GraphqlClient.__new__(graphql_client.GraphqlClient)
+    client.token = dummy_token
+    client.url = "http://example.com/graphql"
+
+    msg = "ConnectionError did not raise NoInternetError."
+    with patch("requests.post", side_effect=requests.ConnectionError):
+        try:
+            client.query("query {}")
+        except graphql_client.NoInternetError:
+            return
+        raise GraphqlClientTestError(msg)
+
+
+def test_query_with_response_errors(dummy_token, dummy_decoded) -> None:
+    """Test GraphqlClient.query returns errors when 'errors' in the response JSON.
+
+    Args:
+        dummy_token (str): Dummy JWT token.
+        dummy_decoded (dict[str, str]): Decoded token for 'prod'.
+
+    """
+    client = graphql_client.GraphqlClient.__new__(graphql_client.GraphqlClient)
+    client.token = dummy_token
+    client.url = "http://example.com/graphql"
+
+    err_json = {"errors": ["error1"]}
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = err_json
+    mock_resp.raise_for_status = lambda: None
+
+    with patch("requests.post", return_value=mock_resp):
+        data, errors = client.query("q")
+
+    msg = "Errors not returned correctly from query."
+    if data is not None or errors != ["error1"]:
+        raise GraphqlClientTestError(msg)
+
+
+def test_graphqlclient_test_db_url(dummy_token, dummy_decoded) -> None:
+    """Test GraphqlClient initialization for 'test' database sets the expected URL.
+
+    Args:
+        dummy_token (str): Dummy JWT token.
+        dummy_decoded (dict[str, str]): Decoded token for 'prod'.
+
+    """
+    with (
+        patch("graphql_client._browser_get_token", return_value=dummy_token),
+        patch("jwt.decode", return_value=dummy_decoded),
+    ):
+        client = graphql_client.GraphqlClient(database="test", base_url="domain.com")
+
+    expected_url = "https://testapi.domain.com/graphql"
+
+    msg = (
+        f"Expected database='test' and url='{expected_url}', "
+        f"got database='{client.database}', url='{client.url}'."
+    )
+
+    if client.database != "test" or client.url != expected_url:
+        raise GraphqlClientTestError(msg)
+
+
+def test_get_token_success() -> None:
+    """Test that get_token returns the 'access_token' field on success response."""
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"access_token": "tok123"}
+    msg = "get_token did not return the expected token."
+
+    with patch("requests.post", return_value=mock_resp):
+        result = graphql_client.get_token("prod", "u", "p")
+    if result != "tok123":
+        raise GraphqlClientTestError(msg)
+
+
+def test_get_token_no_access_token() -> None:
+    """Test that get_token returns None when 'access_token' is missing."""
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {}
+    msg = "get_token should return None if 'access_token' missing."
+
+    with patch("requests.post", return_value=mock_resp):
+        result = graphql_client.get_token("test", "u", "p")
+    if result is not None:
+        raise GraphqlClientTestError(msg)
+
+
+def test_get_token_http_error() -> None:
+    """Test that get_token returns None HTTPError raised by requests.post."""
+    msg = "get_token should return None on HTTPError."
+    with patch("requests.post", side_effect=requests.HTTPError("bad request")):
+        result = graphql_client.get_token("prod", "u", "p")
+    if result is not None:
+        raise GraphqlClientTestError(msg)
+
+
+def test_get_token_connection_error() -> None:
+    """Test that get_token raises NoInternetError on ConnectionError."""
+    msg = "get_token did not raise NoInternetError on ConnectionError."
+    with patch("requests.post", side_effect=requests.ConnectionError()):
+        try:
+            graphql_client.get_token("test", "u", "p")
+        except graphql_client.NoInternetError:
+            return
+        raise GraphqlClientTestError(msg)
+
+
+def test_get_token_invalid_database() -> None:
+    """Test that get_token raises DatabaseChoiceError for invalid database value."""
+    msg = "get_token did not raise DatabaseChoiceError for invalid database."
+    try:
+        graphql_client.get_token("invalid", "u", "p")
+    except graphql_client.DatabaseChoiceError:
+        return
+    raise GraphqlClientTestError(msg)

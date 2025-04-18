@@ -2,7 +2,7 @@
 
 Defines AttributionTestError for signaling test failures.
 Covers get_party_name, get_performance,
-compute_grouped_attribution_with_cumulative, and attrib_area.
+compute_grouped_attribution_with_cumulative, and attribution_area.
 Targets Python 3.13 and follows Ruff standards.
 """
 
@@ -276,7 +276,7 @@ def test_compute_zero_total_prev(sample_data: dict[str, Any]) -> None:
 
 
 class DummySeries:
-    """Stub for OpenTimeSeries-like object used in attrib_area."""
+    """Stub for OpenTimeSeries-like object used in attribution_area."""
 
     def __init__(self, label: str, tsdf: pd.DataFrame) -> None:
         """Initialize dummy series with label and dataframe.
@@ -325,7 +325,7 @@ class DummyFigure:
 
 
 class DummyFrame:
-    """Stub for OpenFrame-like object used in attrib_area."""
+    """Stub for OpenFrame-like object used in attribution_area."""
 
     def __init__(
         self, constituents: list[DummySeries], value_ret: list[float]
@@ -371,8 +371,8 @@ class DummyFrame:
         return DummyFigure(), str(filepath)
 
 
-def test_attrib_area(tmp_path: Path, monkeypatch: Any) -> None:
-    """Test attrib_area returns figure and correct file path."""
+def test_attribution_area(tmp_path: Path, monkeypatch: Any) -> None:
+    """Test attribution_area returns figure and correct file path."""
     dates = [dt.date(2025, 1, i + 1) for i in range(3)]
     dataframe = pd.DataFrame({0: [1.0, 2.0, 3.0]}, index=pd.DatetimeIndex(dates))
     dummy_series = DummySeries(label="S", tsdf=dataframe)
@@ -382,7 +382,7 @@ def test_attrib_area(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.setattr(am, "plot", lambda **kwargs: None)
 
     # noinspection PyTypeChecker
-    fig, path_ret = am.attrib_area(
+    fig, path_ret = am.attribution_area(
         data=dummy_frame,
         series=dummy_series,
         filename="out",
@@ -394,7 +394,7 @@ def test_attrib_area(tmp_path: Path, monkeypatch: Any) -> None:
         auto_open=False,
     )
     if not isinstance(fig, DummyFigure):
-        raise AttributionTestError("attrib_area did not return DummyFigure")
+        raise AttributionTestError("attribution_area did not return DummyFigure")
     expected_path = tmp_path / "out.html"
     if path_ret != expected_path:
-        raise AttributionTestError(f"attrib_area path wrong: {path_ret}")
+        raise AttributionTestError(f"attribution_area path wrong: {path_ret}")

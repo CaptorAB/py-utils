@@ -5,7 +5,7 @@ import datetime as dt
 from openseries import OpenFrame, OpenTimeSeries, date_offset_foll
 
 from attribution import (
-    attrib_area,
+    attribution_area,
     compute_grouped_attribution_with_cumulative,
     get_party_name,
     get_performance,
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     )
     frame.tsdf = frame.tsdf.add(1.0)
 
-    _, _ = attrib_area(
+    _, _ = attribution_area(
         data=frame,
         series=navserie,
         title=fund_name,

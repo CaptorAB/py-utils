@@ -9,7 +9,7 @@ Provides functionality for:
 
 This module defines Pydantic models for validation, helper functions
 to query and validate data, and the `compute_grouped_attribution_with_cumulative`
-and `attrib_area` routines for analysis and visualization.
+and `attribution_area` routines for analysis and visualization.
 """
 
 import datetime as dt
@@ -263,7 +263,7 @@ def compute_grouped_attribution_with_cumulative(
     return daily_series, cumulative_series, total_series
 
 
-def attrib_area(
+def attribution_area(
     data: OpenFrame,
     series: OpenTimeSeries,
     filename: str,
