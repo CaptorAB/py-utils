@@ -17,6 +17,11 @@ import pandas as pd
 import pytest
 
 import attribution as am
+from attribution import (
+    CannotCompoundReturnError,
+    PortfolioValueZeroError,
+    UnknownCompoundMethodError,
+)
 
 
 class AttributionTestError(Exception):
@@ -212,7 +217,7 @@ def test_compute_logreturn_error(sample_data: dict[str, Any]) -> None:
             group_values=["G1"],
             method="logreturn",
         )
-    except ValueError:
+    except CannotCompoundReturnError:
         raised = True
     if not raised:
         raise AttributionTestError("logreturn did not raise on invalid return")
@@ -242,7 +247,7 @@ def test_compute_unknown_method(sample_data: dict[str, Any]) -> None:
             group_values=["G1"],
             method="invalid",  # type: ignore[arg-type]
         )
-    except ValueError:
+    except UnknownCompoundMethodError:
         raised = True
     if not raised:
         raise AttributionTestError("Invalid method did not raise ValueError")
@@ -264,7 +269,7 @@ def test_compute_zero_total_prev(sample_data: dict[str, Any]) -> None:
             group_values=["G1"],
             method="simple",
         )
-    except ValueError:
+    except PortfolioValueZeroError:
         raised = True
     if not raised:
         raise AttributionTestError("Zero total prev did not raise ValueError")

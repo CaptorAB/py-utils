@@ -25,6 +25,18 @@ from plotly.offline import plot
 from graphql_client import GraphqlClient, GraphqlError
 
 
+class PortfolioValueZeroError(Exception):
+    """Raised if the portfolio value is zero."""
+
+
+class UnknownCompoundMethodError(Exception):
+    """Raised if the compound method is unknown."""
+
+
+class CannotCompoundReturnError(Exception):
+    """Raised if the return cannot be compounded."""
+
+
 def get_party_name(graphql: GraphqlClient, party_id: str) -> str:
     """Retrieve the long name of a party from the GraphQL API.
 
@@ -152,8 +164,11 @@ def compute_grouped_attribution_with_cumulative(
            {"date": <date_str>, "value": <series value>}.
 
     Raises:
-        ValueError: If input is malformed, a return cannot be compounded,
-            or an unknown method is specified.
+        PortfolioValueZeroError: Raised if the portfolio value is zero.
+
+        CannotCompoundReturnError: Raised if the return cannot be compounded.
+
+        UnknownCompoundMethodError: Raised if the return cannot be compounded.
 
     """
     dates = data.get("dates")
@@ -168,7 +183,7 @@ def compute_grouped_attribution_with_cumulative(
         total_prev_value = sum(perf["values"][t - 1] for perf in performances)
         if total_prev_value == 0.0:
             msg = f"Total portfolio value is zero on day index {t - 1}"
-            raise ValueError(msg)
+            raise PortfolioValueZeroError(msg)
         for perf in performances:
             prev_value = perf["values"][t - 1]
             curr_value = perf["values"][t]
@@ -197,7 +212,7 @@ def compute_grouped_attribution_with_cumulative(
                 ret = daily_contribs[grp][t]
                 if ret <= -1.0:
                     msg = f"Return {ret} at day index {t} cannot be compounded"
-                    raise ValueError(msg)
+                    raise CannotCompoundReturnError(msg)
                 running_log += math.log1p(ret)
                 cumulative_contribs[grp][t] = math.expm1(running_log)
 
@@ -230,7 +245,7 @@ def compute_grouped_attribution_with_cumulative(
 
     else:
         msg = f"Unknown method '{method}'"
-        raise ValueError(msg)
+        raise UnknownCompoundMethodError(msg)
 
     # Format output as list of {"date": ..., "value": ...}
     total_series = [{"date": dates[t], "value": series[t]} for t in range(n_days)]
