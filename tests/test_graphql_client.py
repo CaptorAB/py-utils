@@ -85,7 +85,7 @@ def test_write_token_and_get_token(
         dummy_decoded (dict): Corresponding decoded token.
 
     """
-    file_path = tmp_path.joinpath("config.json")
+    file_path = tmp_path / "config.json"
 
     with (
         patch("graphql_client.get_dot_config_file_name", return_value=file_path),
@@ -124,7 +124,7 @@ def test_get_token_from_file_missing_file() -> None:
 
 def test_get_token_from_file_missing_db(tmp_path: Path) -> None:
     """Test that DatabaseChoiceError is raised for missing database entry."""
-    file_path = tmp_path.joinpath("config.json")
+    file_path = tmp_path / "config.json"
     file_path.write_text(data=json.dumps({"tokens": {"test": {"token": "123"}}}))
 
     with patch("graphql_client.get_dot_config_file_name", return_value=file_path):
@@ -147,7 +147,7 @@ def test_token_get_server_valid_flow(
         patch("graphql_client.check_internet", return_value=True),
         patch(
             "graphql_client.get_dot_config_file_name",
-            return_value=tmp_path.joinpath("config.json"),
+            return_value=tmp_path / "config.json",
         ),
         patch("graphql_client.Queue") as queue_patch,
         patch("graphql_client.make_server") as server_patch,

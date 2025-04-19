@@ -79,12 +79,12 @@ def download_fund_tpt_report(
 
     if directory:
         dirpath = directory
-    elif Path.home().joinpath("Documents").exists():
-        dirpath = Path.home().joinpath("Documents")
+    elif (Path.home() / "Documents").exists():
+        dirpath = Path.home() / "Documents"
     else:
         dirpath = Path(stack()[1].filename).parent
 
-    sheetfile = dirpath.joinpath(filename)
+    sheetfile = dirpath / filename
     dataframe.to_excel(excel_writer=sheetfile, engine="openpyxl", index=False)
 
     if sheetfile.exists():
@@ -135,7 +135,7 @@ def collate_fund_tpt_reports(
 
 
 if __name__ == "__main__":
-    xlsxpath = Path.home().joinpath("Documents")
+    xlsxpath = Path.home() / "Documents"
     _ = download_fund_tpt_report(
         report_id="67a5ca93079b64d59bb66ccd",
         directory=xlsxpath,

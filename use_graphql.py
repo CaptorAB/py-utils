@@ -16,9 +16,9 @@ if __name__ == "__main__":
 
     my_variables = {"nameIn": ["Captor Iris Bond"]}
 
-    output, outputerrors = gql.query(query_string=my_query, variables=my_variables)
+    data, error = gql.query(query_string=my_query, variables=my_variables)
 
-    if outputerrors:
-        raise GraphqlError(str(outputerrors))
+    if error:
+        raise GraphqlError(str(error))
 
-    print("\n", pformat(output))  # noqa: T201
+    print("\n", pformat(data))  # noqa: T201

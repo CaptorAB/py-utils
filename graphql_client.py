@@ -87,7 +87,7 @@ def get_dot_config_file_name(filename: str) -> Path:
         Path: Path object to the config file.
 
     """
-    return Path.home().joinpath(filename)
+    return Path.home() / filename
 
 
 def write_token_to_file(jwt_token: str, filename: str) -> None:
