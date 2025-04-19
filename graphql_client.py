@@ -4,7 +4,7 @@ import json
 import socket
 import threading
 import webbrowser
-from logging import INFO, basicConfig, getLogger
+from logging import WARNING, basicConfig, getLogger
 from pathlib import Path
 from queue import Queue
 
@@ -13,9 +13,9 @@ import requests
 from werkzeug.serving import make_server
 from werkzeug.wrappers import Request, Response
 
-__all__ = ["GraphqlClient", "GraphqlError"]
+__all__ = ["GraphqlClient", "GraphqlError", "get_token"]
 
-basicConfig(level=INFO)
+basicConfig(level=WARNING)
 logger = getLogger(__name__)
 
 
@@ -55,7 +55,7 @@ class NoInternetError(Exception):
         super().__init__(message)
 
 
-def _check_internet(host: str = "8.8.8.8", port: int = 53, timeout: int = 3) -> bool:
+def check_internet(host: str = "8.8.8.8", port: int = 53, timeout: int = 3) -> bool:
     """Check if there is an active internet connection.
 
     Args:
@@ -77,7 +77,7 @@ def _check_internet(host: str = "8.8.8.8", port: int = 53, timeout: int = 3) -> 
         return True
 
 
-def _get_dot_config_file_name(filename: str) -> Path:
+def get_dot_config_file_name(filename: str) -> Path:
     """Get the full path to the config file in the user's home directory.
 
     Args:
@@ -90,7 +90,7 @@ def _get_dot_config_file_name(filename: str) -> Path:
     return Path.home().joinpath(filename)
 
 
-def _write_token_to_file(jwt_token: str, filename: str) -> None:
+def write_token_to_file(jwt_token: str, filename: str) -> None:
     """Write the decoded JWT token to a file.
 
     Args:
@@ -101,7 +101,7 @@ def _write_token_to_file(jwt_token: str, filename: str) -> None:
         FileNotFoundError: If the file could not be written.
 
     """
-    dot_config_file_name = _get_dot_config_file_name(filename=filename)
+    dot_config_file_name = get_dot_config_file_name(filename=filename)
 
     data = pyjwt.decode(jwt=jwt_token, options={"verify_signature": False})
     database = data["aud"]
@@ -124,7 +124,7 @@ def _write_token_to_file(jwt_token: str, filename: str) -> None:
     logger.info(logger_message)
 
 
-def _get_token_from_file(database: str, filename: str) -> str:
+def get_token_from_file(database: str, filename: str) -> str:
     """Read the token from a local file.
 
     Args:
@@ -139,7 +139,7 @@ def _get_token_from_file(database: str, filename: str) -> str:
         DatabaseChoiceError: If the database is not supported.
 
     """
-    dot_config_file_name = _get_dot_config_file_name(filename=filename)
+    dot_config_file_name = get_dot_config_file_name(filename=filename)
 
     if not dot_config_file_name.exists():
         msg = f"File '{dot_config_file_name}' with token not found"
@@ -159,7 +159,7 @@ def _get_token_from_file(database: str, filename: str) -> str:
     return token
 
 
-def _token_get_server(
+def token_get_server(
     database: str, base_url: str, filename: str, port: int = 5678
 ) -> str:
     """Start a temporary server to retrieve a token via browser.
@@ -188,7 +188,7 @@ def _token_get_server(
     else:
         raise DatabaseChoiceError
 
-    if _check_internet():
+    if check_internet():
         webbrowser.open(
             url=(
                 f"https://{url_str}portal.{base_url}/token?"
@@ -226,14 +226,14 @@ def _token_get_server(
     thread = threading.Thread(target=server.serve_forever)
     thread.start()
     token = queue.get(block=True)
-    _write_token_to_file(jwt_token=token, filename=filename)
+    write_token_to_file(jwt_token=token, filename=filename)
     server.shutdown()
     thread.join()
 
     return token
 
 
-def _browser_get_token(
+def browser_get_token(
     database: str,
     base_url: str,
     filename: str,
@@ -255,11 +255,11 @@ def _browser_get_token(
 
     """
     try:
-        token = _get_token_from_file(database=database, filename=filename)
+        token = get_token_from_file(database=database, filename=filename)
     except (FileNotFoundError, DatabaseChoiceError) as exc:
         logger_message = f"Getting token from file failed: {exc}"
         logger.warning(logger_message)
-        token = _token_get_server(
+        token = token_get_server(
             database=database, base_url=base_url, filename=filename
         )
 
@@ -275,7 +275,7 @@ def _browser_get_token(
     except requests.HTTPError as exc:
         logger_message = f"Token authorization failed. HTTP error occurred: {exc}"
         logger.warning(logger_message)
-        token = _token_get_server(
+        token = token_get_server(
             database=database, base_url=base_url, filename=filename
         )
     except requests.ConnectionError as excc:
@@ -303,7 +303,7 @@ class GraphqlClient:
 
         """
         filename = f".{base_url.split(sep='.')[0]}"
-        self.token = _browser_get_token(
+        self.token = browser_get_token(
             database=database,
             base_url=base_url,
             filename=filename,

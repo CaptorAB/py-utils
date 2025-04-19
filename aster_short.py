@@ -1,6 +1,7 @@
 """Captor Aster Global Credit Short Term attribution analysis module."""
 
 import datetime as dt
+from zoneinfo import ZoneInfo
 
 from openseries import OpenFrame, OpenTimeSeries, date_offset_foll
 
@@ -19,7 +20,9 @@ if __name__ == "__main__":
     fund_name = get_party_name(graphql=gql_client, party_id=fund_id)
     baseccy = "SEK"
 
-    start = date_offset_foll(dt.date.today(), months_offset=-1)
+    zone = ZoneInfo("Europe/Stockholm")
+    today = dt.datetime.now(tz=zone).date()
+    start = date_offset_foll(raw_date=today, months_offset=-3)
     perfdata = get_performance(graphql=gql_client, client_id=fund_id, start_dt=start)
 
     _, cumperf, totserie = compute_grouped_attribution_with_cumulative(

@@ -53,7 +53,7 @@ line-length = 87
 [tool.ruff.lint]
 select = ["ALL"]
 allowed-confusables = ["−"]
-ignore = ["COM812", "D203", "D213", "DTZ011", "N815", "N999", "PD011", "SLF001"]
+ignore = ["COM812", "D203", "D213", "N999"]
 fixable = ["ALL"]
 
 [tool.ruff.lint.pylint]

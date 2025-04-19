@@ -1,7 +1,5 @@
 """Test suite for the graphql_client.py module."""
 
-# ruff: noqa: ANN001, ARG001
-
 import json
 from pathlib import Path
 from queue import Queue
@@ -54,7 +52,7 @@ def test_check_internet_success() -> None:
     """Test that _check_internet returns True when socket connection succeeds."""
     with patch("socket.socket.connect") as mock_connect:
         mock_connect.return_value = None
-        result = graphql_client._check_internet()
+        result = graphql_client.check_internet()
         if result is not True:
             raise GraphqlClientTestError
 
@@ -62,14 +60,14 @@ def test_check_internet_success() -> None:
 def test_check_internet_failure() -> None:
     """Test that _check_internet returns False on socket connection failure."""
     with patch("socket.socket.connect", side_effect=OSError):
-        result = graphql_client._check_internet()
+        result = graphql_client.check_internet()
         if result is not False:
             raise GraphqlClientTestError
 
 
 def test_get_dot_config_file_name() -> None:
     """Test that the returned path includes the given filename."""
-    result = graphql_client._get_dot_config_file_name(filename="testfile")
+    result = graphql_client.get_dot_config_file_name(filename="testfile")
     if not isinstance(result, Path) or not str(result).endswith("testfile"):
         raise GraphqlClientTestError
 
@@ -90,10 +88,10 @@ def test_write_token_and_get_token(
     file_path = tmp_path.joinpath("config.json")
 
     with (
-        patch("graphql_client._get_dot_config_file_name", return_value=file_path),
+        patch("graphql_client.get_dot_config_file_name", return_value=file_path),
         patch("jwt.decode", return_value=dummy_decoded),
     ):
-        graphql_client._write_token_to_file(
+        graphql_client.write_token_to_file(
             jwt_token=dummy_token, filename="config.json"
         )
 
@@ -102,7 +100,7 @@ def test_write_token_and_get_token(
             if "prod" not in data["tokens"]:
                 raise GraphqlClientTestError
 
-        result = graphql_client._get_token_from_file(
+        result = graphql_client.get_token_from_file(
             database="prod", filename="config.json"
         )
         if result != dummy_token:
@@ -112,11 +110,11 @@ def test_write_token_and_get_token(
 def test_get_token_from_file_missing_file() -> None:
     """Test that FileNotFoundError is raised when the token file does not exist."""
     with patch(
-        "graphql_client._get_dot_config_file_name",
+        "graphql_client.get_dot_config_file_name",
         return_value=Path("nonexistent.json"),
     ):
         try:
-            graphql_client._get_token_from_file(
+            graphql_client.get_token_from_file(
                 database="prod", filename="nonexistent.json"
             )
         except FileNotFoundError:
@@ -129,11 +127,9 @@ def test_get_token_from_file_missing_db(tmp_path: Path) -> None:
     file_path = tmp_path.joinpath("config.json")
     file_path.write_text(data=json.dumps({"tokens": {"test": {"token": "123"}}}))
 
-    with patch("graphql_client._get_dot_config_file_name", return_value=file_path):
+    with patch("graphql_client.get_dot_config_file_name", return_value=file_path):
         try:
-            graphql_client._get_token_from_file(
-                database="prod", filename="config.json"
-            )
+            graphql_client.get_token_from_file(database="prod", filename="config.json")
         except graphql_client.DatabaseChoiceError:
             return
         raise GraphqlClientTestError
@@ -148,9 +144,9 @@ def test_token_get_server_valid_flow(
     with (
         patch("jwt.decode", return_value=dummy_decoded),
         patch("webbrowser.open"),
-        patch("graphql_client._check_internet", return_value=True),
+        patch("graphql_client.check_internet", return_value=True),
         patch(
-            "graphql_client._get_dot_config_file_name",
+            "graphql_client.get_dot_config_file_name",
             return_value=tmp_path.joinpath("config.json"),
         ),
         patch("graphql_client.Queue") as queue_patch,
@@ -164,7 +160,7 @@ def test_token_get_server_valid_flow(
         server_patch.return_value = MagicMock()
         thread_patch.return_value = MagicMock()
 
-        result = graphql_client._token_get_server(
+        result = graphql_client.token_get_server(
             database="prod", base_url="captor.se", filename="token.json"
         )
         if result != dummy_token:
@@ -174,7 +170,7 @@ def test_token_get_server_valid_flow(
 def test_token_get_server_invalid_db() -> None:
     """Test that DatabaseChoiceError is raised for an invalid database input."""
     try:
-        graphql_client._token_get_server(
+        graphql_client.token_get_server(
             database="invalid", base_url="base", filename="file"
         )
     except graphql_client.DatabaseChoiceError:
@@ -184,9 +180,9 @@ def test_token_get_server_invalid_db() -> None:
 
 def test_token_get_server_no_internet() -> None:
     """Test that NoInternetError is raised when no internet connection is detected."""
-    with patch("graphql_client._check_internet", return_value=False):
+    with patch("graphql_client.check_internet", return_value=False):
         try:
-            graphql_client._token_get_server(
+            graphql_client.token_get_server(
                 database="prod", base_url="base", filename="file"
             )
         except graphql_client.NoInternetError:
@@ -197,13 +193,13 @@ def test_token_get_server_no_internet() -> None:
 def test_browser_get_token_from_file(dummy_token: str) -> None:
     """Test that _browser_get_token returns a token from file successfully."""
     with (
-        patch("graphql_client._get_token_from_file", return_value=dummy_token),
+        patch("graphql_client.get_token_from_file", return_value=dummy_token),
         patch(
             "requests.get",
             return_value=MagicMock(status_code=200, raise_for_status=lambda: None),
         ),
     ):
-        result = graphql_client._browser_get_token(
+        result = graphql_client.browser_get_token(
             database="prod", base_url="captor.se", filename=".captor"
         )
         if result != dummy_token:
@@ -213,14 +209,14 @@ def test_browser_get_token_from_file(dummy_token: str) -> None:
 def test_browser_get_token_fallback_success(dummy_token: str) -> None:
     """Test fallback to _token_get_server when token file is missing."""
     with (
-        patch("graphql_client._get_token_from_file", side_effect=FileNotFoundError),
-        patch("graphql_client._token_get_server", return_value=dummy_token),
+        patch("graphql_client.get_token_from_file", side_effect=FileNotFoundError),
+        patch("graphql_client.token_get_server", return_value=dummy_token),
         patch(
             "requests.get",
             return_value=MagicMock(status_code=200, raise_for_status=lambda: None),
         ),
     ):
-        result = graphql_client._browser_get_token(
+        result = graphql_client.browser_get_token(
             database="prod", base_url="captor.se", filename=".captor"
         )
         if result != dummy_token:
@@ -230,11 +226,11 @@ def test_browser_get_token_fallback_success(dummy_token: str) -> None:
 def test_browser_get_token_refresh_on_http_error(dummy_token: str) -> None:
     """Test that token is refreshed from server when HTTPError is raised."""
     with (
-        patch("graphql_client._get_token_from_file", return_value=dummy_token),
+        patch("graphql_client.get_token_from_file", return_value=dummy_token),
         patch("requests.get", side_effect=requests.HTTPError("bad token")),
-        patch("graphql_client._token_get_server", return_value="new_token"),
+        patch("graphql_client.token_get_server", return_value="new_token"),
     ):
-        result = graphql_client._browser_get_token(
+        result = graphql_client.browser_get_token(
             database="prod", base_url="captor.se", filename=".captor"
         )
         if result != "new_token":
@@ -244,11 +240,11 @@ def test_browser_get_token_refresh_on_http_error(dummy_token: str) -> None:
 def test_browser_get_token_connection_error(dummy_token: str) -> None:
     """Test that NoInternetError is raised on connection failure."""
     with (
-        patch("graphql_client._get_token_from_file", return_value=dummy_token),
+        patch("graphql_client.get_token_from_file", return_value=dummy_token),
         patch("requests.get", side_effect=requests.ConnectionError),
     ):
         try:
-            graphql_client._browser_get_token(
+            graphql_client.browser_get_token(
                 database="prod", base_url="captor.se", filename=".captor"
             )
         except graphql_client.NoInternetError:
@@ -262,7 +258,7 @@ def test_external_graphql_client_success(
 ) -> None:
     """Test successful creation of GraphQLClient instance."""
     with (
-        patch("graphql_client._browser_get_token", return_value=dummy_token),
+        patch("graphql_client.browser_get_token", return_value=dummy_token),
         patch("jwt.decode", return_value=dummy_decoded),
     ):
         client = graphql_client.GraphqlClient(database="prod", base_url="captor.se")
@@ -285,7 +281,7 @@ def test_external_graphql_query_success(
 ) -> None:
     """Test successful execution of a GraphQL query."""
     with (
-        patch("graphql_client._browser_get_token", return_value=dummy_token),
+        patch("graphql_client.browser_get_token", return_value=dummy_token),
         patch("jwt.decode", return_value=dummy_decoded),
     ):
         client = graphql_client.GraphqlClient(database="prod", base_url="captor.se")
@@ -307,7 +303,7 @@ def test_external_graphql_query_http_error(
 ) -> None:
     """Test that query method returns error string on HTTPError."""
     with (
-        patch("graphql_client._browser_get_token", return_value=dummy_token),
+        patch("graphql_client.browser_get_token", return_value=dummy_token),
         patch("jwt.decode", return_value=dummy_decoded),
     ):
         client = graphql_client.GraphqlClient(database="prod", base_url="captor.se")
@@ -333,7 +329,9 @@ def dummy_decoded_test() -> dict[str, str]:
 
 
 def test_write_token_to_file_merge_branch(
-    tmp_path, dummy_decoded_test, dummy_token
+    tmp_path: Path,
+    dummy_decoded_test: dict[str, str],
+    dummy_token: str,
 ) -> None:
     """Test merging behavior in _write_token_to_file when a config file already exists.
 
@@ -349,9 +347,9 @@ def test_write_token_to_file_merge_branch(
 
     with (
         patch("jwt.decode", return_value=dummy_decoded_test),
-        patch("graphql_client._get_dot_config_file_name", return_value=file_path),
+        patch("graphql_client.get_dot_config_file_name", return_value=file_path),
     ):
-        graphql_client._write_token_to_file(
+        graphql_client.write_token_to_file(
             jwt_token=dummy_token, filename="config.json"
         )
 
@@ -362,14 +360,13 @@ def test_write_token_to_file_merge_branch(
         raise GraphqlClientTestError(msg)
 
 
-def test_query_with_variables_and_verify_false(dummy_token, dummy_decoded) -> None:
+def test_query_with_variables_and_verify_false(dummy_token: str) -> None:
     """Test GraphqlClient.query with variables and verify=False.
 
     Query should return no data or errors for an empty response.
 
     Args:
         dummy_token (str): Dummy JWT token.
-        dummy_decoded (dict[str, str]): Decoded token for 'prod'.
 
     """
     client = graphql_client.GraphqlClient.__new__(graphql_client.GraphqlClient)
@@ -397,12 +394,11 @@ def test_query_with_variables_and_verify_false(dummy_token, dummy_decoded) -> No
         raise GraphqlClientTestError(msg)
 
 
-def test_query_connection_error(dummy_token, dummy_decoded) -> None:
+def test_query_connection_error(dummy_token: str) -> None:
     """Test GraphqlClient.query raises NoInternetError on ConnectionError.
 
     Args:
         dummy_token (str): Dummy JWT token.
-        dummy_decoded (dict[str, str]): Decoded token for 'prod'.
 
     """
     client = graphql_client.GraphqlClient.__new__(graphql_client.GraphqlClient)
@@ -418,12 +414,11 @@ def test_query_connection_error(dummy_token, dummy_decoded) -> None:
         raise GraphqlClientTestError(msg)
 
 
-def test_query_with_response_errors(dummy_token, dummy_decoded) -> None:
+def test_query_with_response_errors(dummy_token: str) -> None:
     """Test GraphqlClient.query returns errors when 'errors' in the response JSON.
 
     Args:
         dummy_token (str): Dummy JWT token.
-        dummy_decoded (dict[str, str]): Decoded token for 'prod'.
 
     """
     client = graphql_client.GraphqlClient.__new__(graphql_client.GraphqlClient)
@@ -444,7 +439,9 @@ def test_query_with_response_errors(dummy_token, dummy_decoded) -> None:
         raise GraphqlClientTestError(msg)
 
 
-def test_graphqlclient_test_db_url(dummy_token, dummy_decoded) -> None:
+def test_graphqlclient_test_db_url(
+    dummy_token: str, dummy_decoded: dict[str, str]
+) -> None:
     """Test GraphqlClient initialization for 'test' database sets the expected URL.
 
     Args:
@@ -453,7 +450,7 @@ def test_graphqlclient_test_db_url(dummy_token, dummy_decoded) -> None:
 
     """
     with (
-        patch("graphql_client._browser_get_token", return_value=dummy_token),
+        patch("graphql_client.browser_get_token", return_value=dummy_token),
         patch("jwt.decode", return_value=dummy_decoded),
     ):
         client = graphql_client.GraphqlClient(database="test", base_url="domain.com")

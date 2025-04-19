@@ -6,7 +6,7 @@ compute_grouped_attribution_with_cumulative, and attribution_area.
 Targets Python 3.13 and follows Ruff standards.
 """
 
-# ruff: noqa: ANN401, ARG002, ARG005, D102, D200, TRY003, EM101, EM102
+# ruff: noqa: ANN401
 
 import datetime as dt
 import math
@@ -42,7 +42,8 @@ class DummyGraphqlClient:
         self._data = data
         self._error = error
 
-    def query(self, query_string: str, variables: dict[str, Any]) -> Any:
+    # noinspection PyUnusedLocal
+    def query(self, query_string: str, variables: dict[str, Any]) -> Any:  # noqa: ARG002
         """Simulate a GraphQL query returning (data, error).
 
         Returns:
@@ -170,21 +171,30 @@ def test_compute_simple_method(sample_data: dict[str, Any]) -> None:
 
     expected_g1 = (120.0 - 100.0) / 300.0
     expected_other = (180.0 - 200.0) / 300.0
+
+    msg1 = f"G1 daily wrong: {daily['G1'][1]}"
     # noinspection PyTypeChecker
     if not math.isclose(daily["G1"][1]["value"], expected_g1, rel_tol=1e-9):
-        raise AttributionTestError(f"G1 daily wrong: {daily['G1'][1]}")
+        raise AttributionTestError(msg1)
+
+    msg2 = f"Other daily wrong: {daily['Other'][1]}"
     # noinspection PyTypeChecker
     if not math.isclose(daily["Other"][1]["value"], expected_other, rel_tol=1e-9):
-        raise AttributionTestError(f"Other daily wrong: {daily['Other'][1]}")
+        raise AttributionTestError(msg2)
+
+    msg3 = f"G1 cumulative wrong: {cumu['G1'][1]}"
     # noinspection PyTypeChecker
     if not math.isclose(cumu["G1"][1]["value"], expected_g1, rel_tol=1e-9):
-        raise AttributionTestError(f"G1 cumulative wrong: {cumu['G1'][1]}")
+        raise AttributionTestError(msg3)
+
     expected_total = [
         {"date": "d1", "value": 0.0},
         {"date": "d2", "value": sample_data["series"][1]},
     ]
+
+    msg4 = f"Total mismatched: {total}"
     if total != expected_total:
-        raise AttributionTestError(f"Total mismatched: {total}")
+        raise AttributionTestError(msg4)
 
 
 def test_compute_logreturn_method(sample_data: dict[str, Any]) -> None:
@@ -196,13 +206,16 @@ def test_compute_logreturn_method(sample_data: dict[str, Any]) -> None:
         method="logreturn",
     )
     expected = (120.0 - 100.0) / 300.0
+
+    msg = f"G1 logreturn wrong: {cumu['G1'][1]}"
+
     # noinspection PyTypeChecker
     if not math.isclose(cumu["G1"][1]["value"], expected, rel_tol=1e-9):
-        raise AttributionTestError(f"G1 logreturn wrong: {cumu['G1'][1]}")
+        raise AttributionTestError(msg)
 
 
 def test_compute_logreturn_error(sample_data: dict[str, Any]) -> None:
-    """Test logreturn raises ValueError when return <= -1."""
+    """Test logreturn raises CannotCompoundReturnError when return <= -1."""
     bad_perf = {
         "values": [100.0, 0.0],
         "cashFlows": [0.0, 0.0],
@@ -219,8 +232,10 @@ def test_compute_logreturn_error(sample_data: dict[str, Any]) -> None:
         )
     except CannotCompoundReturnError:
         raised = True
+
+    msg = "logreturn did not raise CannotCompoundReturnError on invalid return"
     if not raised:
-        raise AttributionTestError("logreturn did not raise on invalid return")
+        raise AttributionTestError(msg)
 
 
 def test_compute_carino_menchero_method(sample_data: dict[str, Any]) -> None:
@@ -232,13 +247,16 @@ def test_compute_carino_menchero_method(sample_data: dict[str, Any]) -> None:
         method="carino_menchero",
     )
     expected = (120.0 - 100.0) / 300.0
+
+    msg = f"Carino/Menchero wrong: {cumu['G1'][1]}"
+
     # noinspection PyTypeChecker
     if not math.isclose(cumu["G1"][1]["value"], expected, rel_tol=1e-9):
-        raise AttributionTestError(f"Carino/Menchero wrong: {cumu['G1'][1]}")
+        raise AttributionTestError(msg)
 
 
 def test_compute_unknown_method(sample_data: dict[str, Any]) -> None:
-    """Test unknown method raises ValueError."""
+    """Test unknown method raises UnknownCompoundMethodError."""
     raised = False
     try:
         am.compute_grouped_attribution_with_cumulative(
@@ -249,12 +267,14 @@ def test_compute_unknown_method(sample_data: dict[str, Any]) -> None:
         )
     except UnknownCompoundMethodError:
         raised = True
+
+    msg = "Invalid method did not raise UnknownCompoundMethodError"
     if not raised:
-        raise AttributionTestError("Invalid method did not raise ValueError")
+        raise AttributionTestError(msg)
 
 
 def test_compute_zero_total_prev(sample_data: dict[str, Any]) -> None:
-    """Test simple method raises ValueError when total prev value is zero."""
+    """Test simple method raises PortfolioValueZeroError."""
     zero_perf = {
         "values": [0.0, 0.0],
         "cashFlows": [0.0, 0.0],
@@ -271,8 +291,10 @@ def test_compute_zero_total_prev(sample_data: dict[str, Any]) -> None:
         )
     except PortfolioValueZeroError:
         raised = True
+
+    msg = "Zero total prev did not raise PortfolioValueZeroError"
     if not raised:
-        raise AttributionTestError("Zero total prev did not raise ValueError")
+        raise AttributionTestError(msg)
 
 
 class DummySeries:
@@ -345,21 +367,25 @@ class DummyFrame:
         """Return self for chaining."""
         return self
 
-    def merge_series(self, how: str) -> Self:
+    # noinspection PyUnusedLocal
+    def merge_series(self, how: str) -> Self:  # noqa: ARG002
         """Stub merge_series method."""
         return self
 
-    def value_nan_handle(self, method: str) -> Self:
+    # noinspection PyUnusedLocal
+    def value_nan_handle(self, method: str) -> Self:  # noqa: ARG002
+        """Stub value_nan_handle method."""
         return self
 
+    # noinspection PyUnusedLocal
+    @staticmethod
     def plot_series(
-        self,
-        tick_fmt: str,
+        tick_fmt: str,  # noqa: ARG004
         directory: Path,
         filename: str,
         *,
-        add_logo: bool,
-        auto_open: bool,
+        add_logo: bool,  # noqa: ARG004
+        auto_open: bool,  # noqa: ARG004
     ) -> Any:
         """Stub plot_series returning a figure and filepath.
 
@@ -378,8 +404,8 @@ def test_attribution_area(tmp_path: Path, monkeypatch: Any) -> None:
     dummy_series = DummySeries(label="S", tsdf=dataframe)
     dummy_frame = DummyFrame(constituents=[dummy_series], value_ret=[0.1])
 
-    monkeypatch.setattr(am, "concat", lambda dfs, axis: dataframe)
-    monkeypatch.setattr(am, "plot", lambda **kwargs: None)
+    monkeypatch.setattr(am, "concat", lambda dfs, axis: dataframe)  # noqa: ARG005
+    monkeypatch.setattr(am, "plot", lambda **kwargs: None)  # noqa: ARG005
 
     # noinspection PyTypeChecker
     fig, path_ret = am.attribution_area(
@@ -393,8 +419,12 @@ def test_attribution_area(tmp_path: Path, monkeypatch: Any) -> None:
         add_logo=False,
         auto_open=False,
     )
+
+    msg1 = "attribution_area did not return DummyFigure"
     if not isinstance(fig, DummyFigure):
-        raise AttributionTestError("attribution_area did not return DummyFigure")
+        raise AttributionTestError(msg1)
     expected_path = tmp_path / "out.html"
+
+    msg2 = f"attribution_area path wrong: {path_ret}"
     if path_ret != expected_path:
-        raise AttributionTestError(f"attribution_area path wrong: {path_ret}")
+        raise AttributionTestError(msg2)
