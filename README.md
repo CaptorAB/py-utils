@@ -11,7 +11,7 @@
 [![GitHub Action Test Suite](https://github.com/CaptorAB/py-utils/actions/workflows/tests.yml/badge.svg)](https://github.com/CaptorAB/py-utils/actions/workflows/tests.yml)
 [![Coverage](https://cdn.jsdelivr.net/gh/CaptorAB/py-utils@master/coverage.svg)](https://github.com/CaptorAB/py-utils/actions/workflows/tests.yml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://beta.ruff.rs/docs/)
-[![GitHub License](https://img.shields.io/github/license/CaptorAB/py-utils)](https://github.com/CaptorAB/py-utils/blob/master/LICENSE)
+[![GitHub License](https://img.shields.io/github/license/CaptorAB/py-utils)](https://github.com/CaptorAB/py-utils/blob/master/LICENSE.md)
 
 This project assumes that you will be able to install a compatible version and install the dependencies listed in the requirements.txt file.
 
