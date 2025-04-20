@@ -354,7 +354,7 @@ class GraphqlClient:
             "Authorization": f"Bearer {self.token}",
             "accept-encoding": "gzip",
         }
-        json_data = {"query": query_string}
+        json_data: dict[str, str | dict] = {"query": query_string}
 
         if variables:
             json_data["variables"] = variables

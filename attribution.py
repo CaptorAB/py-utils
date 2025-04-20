@@ -171,10 +171,13 @@ def compute_grouped_attribution_with_cumulative(
         UnknownCompoundMethodError: Raised if the return cannot be compounded.
 
     """
+    performances = data.get("instrumentPerformances")
     dates = data.get("dates")
     series = data.get("series")
-    performances = data.get("instrumentPerformances")
     n_days = len(dates)
+    # noinspection PyUnusedLocal
+    total_series = [{"date": dates[t], "value": series[t]} for t in range(n_days)]
+
     groups = [*group_values, "Other"]
 
     # Compute daily contributions
@@ -247,8 +250,7 @@ def compute_grouped_attribution_with_cumulative(
         msg = f"Unknown method '{method}'"
         raise UnknownCompoundMethodError(msg)
 
-    # Format output as list of {"date": ..., "value": ...}
-    total_series = [{"date": dates[t], "value": series[t]} for t in range(n_days)]
+    # noinspection PyUnreachableCode
     daily_series: dict[str, list[dict[str, str | float]]] = {}
     cumulative_series: dict[str, list[dict[str, str | float]]] = {}
     for grp in groups:

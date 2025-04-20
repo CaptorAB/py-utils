@@ -40,11 +40,12 @@ repository = "https://github.com/CaptorAB/py-utils"
 
 [tool.coverage.run]
 branch = true
-omit = ["venv/*", "tests/*"]
+omit = ["venv/*", "tests/*", "**/__init__.py"]
 
 [tool.coverage.report]
 skip_empty = true
 show_missing = true
+omit = ["**/__init__.py"]
 
 [tool.ruff]
 target-version = "py313"
