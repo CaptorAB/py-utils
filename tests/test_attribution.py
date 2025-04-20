@@ -16,7 +16,7 @@ from typing import Any
 try:
     from typing import Self
 except ImportError:  # pragma: no cover
-    from typing import Self
+    from typing_extensions import Self
 
 import pandas as pd
 import pytest
