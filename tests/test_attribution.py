@@ -11,7 +11,12 @@ Targets Python 3.13 and follows Ruff standards.
 import datetime as dt
 import math
 from pathlib import Path
-from typing import Any, Self
+from typing import Any
+
+try:
+    from typing import Self
+except ImportError:  # pragma: no cover
+    from typing import Self
 
 import pandas as pd
 import pytest
