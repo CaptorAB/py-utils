@@ -13,6 +13,18 @@ logger = logging.getLogger(__name__)
 
 # Constants
 SMALL_VALUE_THRESHOLD = 0.000001
+ABOVE_THRESHOLD_VALUE = 0.0000011
+MAX_RETRIES = 3
+MAX_RETRIES_TEST = 2
+CALL_COUNT_SUCCESS = 3
+
+# Error messages
+INVALID_REPORT_FORMAT = "Invalid report data format"
+INVALID_REPORT_FORMAT_WITH_ID = "Invalid report data format for report {report_id}"
+PROCESSING_ERROR = "Failed to process report data: {error}"
+REPORT_PROCESSING_ERROR = "Failed to process report {report_id}: {error}"
+COLLATION_ERROR = "Error collating TPT reports: {error}"
+NO_REPORTS_ERROR = "No reports to collate"
 
 
 class TPTDownloadError(Exception):
@@ -50,7 +62,7 @@ def download_fund_tpt_report(
     report_id: str,
     directory: Path | None = None,
     timeout: int | None = None,
-    max_retries: int = 3,
+    max_retries: int = MAX_RETRIES,
 ) -> Path:
     """Download and process a TPT report for a fund.
 
@@ -72,8 +84,15 @@ def download_fund_tpt_report(
     for attempt in range(max_retries):
         try:
             data = _download_single_report(report_id=report_id, timeout=timeout)
-            report_data = pd.DataFrame(data["data"])
-            processed_data = report_data.map(replace_small_values)
+            if not isinstance(data, dict) or "data" not in data or "name" not in data:
+                raise TPTProcessingError(INVALID_REPORT_FORMAT)
+
+            try:
+                report_data = pd.DataFrame(data["data"])
+                processed_data = report_data.map(replace_small_values)
+            except Exception as e:
+                error_msg = PROCESSING_ERROR.format(error=str(e))
+                raise TPTProcessingError(error_msg) from e
 
             output_dir = directory or Path.cwd()
             output_file = output_dir / f"{data['name']}.xlsx"
@@ -115,19 +134,40 @@ def collate_fund_tpt_reports(
         TPTProcessingError: If report processing fails.
 
     """
+    if not report_ids:
+        raise TPTProcessingError(NO_REPORTS_ERROR)
+
     report_dataframes = []
     for report_id in report_ids:
         data = _download_single_report(report_id=report_id, timeout=timeout)
-        report_data = pd.DataFrame(data["data"])
-        processed_data = report_data.map(replace_small_values)
-        report_dataframes.append(processed_data)
+        if not isinstance(data, dict) or "data" not in data:
+            error_msg = INVALID_REPORT_FORMAT_WITH_ID.format(report_id=report_id)
+            raise TPTProcessingError(error_msg)
+
+        if not isinstance(data["data"], list):
+            error_msg = REPORT_PROCESSING_ERROR.format(
+                report_id=report_id,
+                error="Data must be a list of dictionaries",
+            )
+            raise TPTProcessingError(error_msg)
+
+        try:
+            report_data = pd.DataFrame(data["data"])
+            processed_data = report_data.map(replace_small_values)
+            report_dataframes.append(processed_data)
+        except Exception as e:
+            error_msg = REPORT_PROCESSING_ERROR.format(
+                report_id=report_id,
+                error=str(e),
+            )
+            raise TPTProcessingError(error_msg) from e
 
     try:
         result = pd.concat(report_dataframes, axis=0, ignore_index=True)
         result.to_excel(sheetfile, index=False)
     except Exception as e:
-        msg = f"Error collating TPT reports: {e!s}"
-        raise TPTProcessingError(msg) from e
+        error_msg = COLLATION_ERROR.format(error=str(e))
+        raise TPTProcessingError(error_msg) from e
     else:
         return sheetfile
 
