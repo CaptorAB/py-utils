@@ -15,7 +15,7 @@ from typing import Any
 
 try:
     from typing import Self
-except ImportError:  # pragma: no cover
+except ImportError:
     from typing_extensions import Self
 
 import pandas as pd
