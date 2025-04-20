@@ -1,0 +1,169 @@
+name: test
+
+on: workflow_dispatch
+
+jobs:
+
+  windows:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ '3.10', '3.11', '3.12', '3.13' ]
+
+    steps:
+      - name: Check out GitHub repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        id: setup_python
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Create virtual environment and install dependencies on Python ${{ steps.setup_python.outputs.python-version }}
+        run: |
+          python -m venv venv
+          source venv/Scripts/activate
+          python.exe -m ensurepip
+          python.exe -m pip install --upgrade pip setuptools wheel
+          pip install --upgrade -r requirements.txt
+
+      - name: Check state of dependencies
+        run: |
+          source venv/Scripts/activate
+          pip list --outdated
+
+      - name: Check and fix with Ruff
+        run: |
+          source venv/Scripts/activate
+          ruff check ./tests/*.py ./*.py --fix --exit-non-zero-on-fix
+
+      - name: Format with Ruff
+        run: |
+          source venv/Scripts/activate
+          ruff format
+
+      - name: Tests with Pytest
+        run: |
+          source venv/Scripts/activate
+          PYTHONPATH=${PWD} coverage run -m pytest --verbose --capture=no
+
+      - name: Report coverage
+        run: |
+          source venv/Scripts/activate
+          coverage report
+
+  ubuntu:
+    needs: windows
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ '3.10', '3.11', '3.12', '3.13' ]
+
+    steps:
+      - name: Check out GitHub repository ${{ github.repository }}
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        id: setup_python
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Create virtual environment and install dependencies on Python ${{ steps.setup_python.outputs.python-version }}
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          which python
+          python --version
+          python -m ensurepip
+          pip install --upgrade pip setuptools wheel
+          pip install --upgrade -r requirements.txt
+
+      - name: Check state of dependencies
+        run: |
+          source venv/bin/activate
+          pip list --outdated
+
+      - name: Check and fix with Ruff
+        run: |
+          source venv/bin/activate
+          ruff check ./tests/*.py ./*.py --fix --exit-non-zero-on-fix
+
+      - name: Format with Ruff
+        run: |
+          source venv/bin/activate
+          ruff format
+
+      - name: Tests with Pytest
+        run: |
+          source venv/bin/activate
+          PYTHONPATH=${PWD} coverage run -m pytest --verbose --capture=no
+
+      - name: Report coverage
+        run: |
+          source venv/bin/activate
+          coverage report
+
+  macos:
+    needs: ubuntu
+    runs-on: macos-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ '3.10', '3.11', '3.12', '3.13' ]
+
+    steps:
+      - name: Check out GitHub repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        id: setup_python
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Create virtual environment and install dependencies on Python ${{ steps.setup_python.outputs.python-version }}
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          which python
+          python --version
+          python -m ensurepip
+          pip install --upgrade pip setuptools wheel
+          pip install --upgrade -r requirements.txt
+
+      - name: Check state of dependencies
+        run: pip list --outdated
+
+      - name: Check and fix with Ruff
+        run: |
+          source venv/bin/activate
+          ruff check ./tests/*.py ./*.py --fix --exit-non-zero-on-fix
+
+      - name: Format with Ruff
+        run: |
+          source venv/bin/activate
+          ruff format
+
+      - name: Tests with Pytest
+        run: |
+          source venv/bin/activate
+          PYTHONPATH=${PWD} coverage run -m pytest --verbose --capture=no
+
+      - name: Report coverage
+        run: |
+          source venv/bin/activate
+          coverage report
