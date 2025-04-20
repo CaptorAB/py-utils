@@ -10,6 +10,9 @@ coverage.xml
 # Environments
 /venv/
 
+# Cursor
+/.cursor/
+
 # Pycharm
 .idea/*
 

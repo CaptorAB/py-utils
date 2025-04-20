@@ -1,25 +1,148 @@
-"""Functions to fetch TPT data from the Captor open API."""
+"""Module for downloading and processing TPT reports."""
 
-from inspect import stack
+import logging
+import re
 from pathlib import Path
-from re import match as re_match
+from typing import Any
 
+import pandas as pd
 import requests
-from pandas import DataFrame, concat
+
+# Configure module logger
+logger = logging.getLogger(__name__)
+
+# Constants
+SMALL_VALUE_THRESHOLD = 0.000001
+
+
+class TPTDownloadError(Exception):
+    """Exception raised when TPT report download fails."""
+
+
+class TPTProcessingError(Exception):
+    """Exception raised when TPT report processing fails."""
+
+
+def _download_single_report(
+    report_id: str,
+    timeout: int | None = None,
+) -> dict[str, Any]:
+    """Download a single TPT report from the API.
+
+    Args:
+        report_id: The ID of the report to download.
+        timeout: Optional timeout in seconds for the request.
+
+    Returns:
+        The downloaded report data as a dictionary.
+
+    Raises:
+        TPTDownloadError: If the report download fails.
+
+    """
+    url = f"https://api.captor.se/public/api/tpts/{report_id}"
+    response = requests.get(url=url, timeout=timeout)
+    response.raise_for_status()
+    return response.json()
+
+
+def download_fund_tpt_report(
+    report_id: str,
+    directory: Path | None = None,
+    timeout: int | None = None,
+    max_retries: int = 3,
+) -> Path:
+    """Download and process a TPT report for a fund.
+
+    Args:
+        report_id: The ID of the report to download.
+        directory: Optional directory to save the report.
+        timeout: Optional timeout in seconds for the request.
+        max_retries: Maximum number of retry attempts.
+
+    Returns:
+        Path to the saved Excel file.
+
+    Raises:
+        TPTDownloadError: If the report download fails after retries.
+        TPTProcessingError: If the report processing fails.
+
+    """
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            data = _download_single_report(report_id=report_id, timeout=timeout)
+            report_data = pd.DataFrame(data["data"])
+            processed_data = report_data.map(replace_small_values)
+
+            output_dir = directory or Path.cwd()
+            output_file = output_dir / f"{data['name']}.xlsx"
+            processed_data.to_excel(output_file, index=False)
+        except requests.RequestException as e:  # noqa: PERF203
+            last_error = e
+            if attempt == max_retries - 1:
+                raise
+            logger.warning(
+                "Attempt %d failed, retrying...",
+                attempt + 1,
+            )
+        else:
+            return output_file
+
+    msg = f"Failed to download report after {max_retries} attempts"
+    if last_error:
+        raise last_error
+    raise TPTDownloadError(msg)
+
+
+def collate_fund_tpt_reports(
+    report_ids: list[str],
+    sheetfile: Path,
+    timeout: int | None = None,
+) -> Path:
+    """Download and collate multiple TPT reports into a single Excel file.
+
+    Args:
+        report_ids: List of report IDs to download.
+        sheetfile: Path to save the collated Excel file.
+        timeout: Optional timeout in seconds for each request.
+
+    Returns:
+        Path to the saved Excel file.
+
+    Raises:
+        TPTDownloadError: If any report download fails.
+        TPTProcessingError: If report processing fails.
+
+    """
+    report_dataframes = []
+    for report_id in report_ids:
+        data = _download_single_report(report_id=report_id, timeout=timeout)
+        report_data = pd.DataFrame(data["data"])
+        processed_data = report_data.map(replace_small_values)
+        report_dataframes.append(processed_data)
+
+    try:
+        result = pd.concat(report_dataframes, axis=0, ignore_index=True)
+        result.to_excel(sheetfile, index=False)
+    except Exception as e:
+        msg = f"Error collating TPT reports: {e!s}"
+        raise TPTProcessingError(msg) from e
+    else:
+        return sheetfile
 
 
 def sort_key(col_name: str) -> tuple[float | int, str]:
-    """Generate a sorting key for column names based on leading numbers and letters.
+    """Extract sort key from column name.
 
     Args:
-        col_name (str): The column name to extract sorting components from.
+        col_name: Column name to process.
 
     Returns:
-        tuple[float | int, str]: A tuple of (number, string) used for sorting. If no
-        match is found, returns (inf, original column name).
+        Tuple of (numeric part, string part) for sorting.
 
     """
-    match = re_match(r"(\d+)([A-Za-z]*)_", col_name)
+    match = re.match(r"(\d+)([A-Za-z]*)_", col_name)
     if match:
         number = int(match.group(1))
         letter = match.group(2)
@@ -28,110 +151,19 @@ def sort_key(col_name: str) -> tuple[float | int, str]:
     return float("inf"), col_name
 
 
-def replace_small_values(
-    x: float | str | None,
-    threshold: float = 0.000001,
-) -> float | int | str | None:
-    """Replace very small float values with zero.
+def replace_small_values(value: float | str | None) -> float | str | None:
+    """Replace very small numeric values with 0.
 
     Args:
-        x (float | str | None): Value to check.
-        threshold (float): Threshold below which float values are replaced with 0.0.
-            Defaults to 0.000001.
+        value: Value to process.
 
     Returns:
-        float | int | str | None: Zero if value is small float, otherwise unchanged.
+        Processed value with small numbers replaced by 0.
 
     """
-    if isinstance(x, float) and abs(x) < threshold:
+    if isinstance(value, (int, float)) and abs(value) < SMALL_VALUE_THRESHOLD:
         return 0.0
-    return x
-
-
-def download_fund_tpt_report(
-    report_id: str,
-    directory: Path | None = None,
-    timeout: int = 10,
-) -> Path | None:
-    """Download a fund TPT report as an Excel file.
-
-    Args:
-        report_id (str): Unique identifier for the TPT report.
-        directory (Path | None): Directory to save the Excel file in. If None, saves
-            to ~/Documents or the script's directory.
-        timeout (int): Timeout in seconds for the HTTP request. Defaults to 10.
-
-    Returns:
-        Path | None: Path to the saved Excel file, or None if saving failed.
-
-    """
-    url = f"https://api.captor.se/public/api/tpts/{report_id}"
-    response = requests.get(url=url, timeout=timeout)
-    response.raise_for_status()
-    data = response.json()
-    filename = f"{data['name']}.xlsx"
-
-    dataframe = DataFrame(data=data["data"])
-    sorted_columns = sorted(dataframe.columns, key=sort_key)
-    dataframe = dataframe[sorted_columns].apply(
-        lambda col: col.map(replace_small_values)
-    )
-
-    if directory:
-        dirpath = directory
-    elif (Path.home() / "Documents").exists():
-        dirpath = Path.home() / "Documents"
-    else:
-        dirpath = Path(stack()[1].filename).parent
-
-    sheetfile = dirpath / filename
-    dataframe.to_excel(excel_writer=sheetfile, engine="openpyxl", index=False)
-
-    if sheetfile.exists():
-        print(f"\nReport written to Xlsx file: {sheetfile}")  # noqa: T201
-        return sheetfile
-
-    return None
-
-
-def collate_fund_tpt_reports(
-    report_ids: list[str],
-    sheetfile: Path,
-    timeout: int = 10,
-) -> Path | None:
-    """Download and merge multiple fund TPT reports into one Excel file.
-
-    Args:
-        report_ids (list[str]): List of report IDs to download and collate.
-        sheetfile (Path): Destination path for the output Excel file.
-        timeout (int): Timeout in seconds for each HTTP request. Defaults to 10.
-
-    Returns:
-        Path | None: Path to the saved Excel file, or None if saving failed.
-
-    """
-    base_url = "https://api.captor.se/public/api/tpts/{}"
-
-    dataframe = DataFrame()
-
-    for report_id in report_ids:
-        url = base_url.format(report_id)
-        response = requests.get(url=url, timeout=timeout)
-        response.raise_for_status()
-        data = response.json()
-        new_df = DataFrame(data["data"])
-        sorted_columns = sorted(new_df.columns, key=sort_key)
-        new_df = new_df[sorted_columns].apply(
-            lambda col: col.map(replace_small_values),
-        )
-        dataframe = concat(objs=[dataframe, new_df])
-
-    dataframe.to_excel(excel_writer=sheetfile, engine="openpyxl", index=False)
-
-    if sheetfile.exists():
-        return sheetfile
-
-    return None
+    return value
 
 
 if __name__ == "__main__":
