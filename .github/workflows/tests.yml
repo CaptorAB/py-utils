@@ -1,0 +1,62 @@
+name: tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "*" # matches every branch that doesn't contain a '/'
+      - "*/*" # matches every branch containing a single '/'
+      - "**" # matches every branch
+
+jobs:
+  run_tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Check out GitHub repository ${{ github.repository }}
+        uses: actions/checkout@v4
+
+      - name: Set up Python on ${{ runner.os }}
+        uses: actions/setup-python@v5
+        id: setup_python
+        with:
+          python-version-file: '.python-version'
+          cache: 'pip'
+
+      - name: Create virtual environment and install dependencies on Python ${{ steps.setup_python.outputs.python-version }}
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          which python
+          python --version
+          python -m ensurepip
+          pip install --upgrade pip setuptools wheel
+          pip install --upgrade -r requirements.txt
+
+      - name: Check state of dependencies
+        run: |
+          source venv/bin/activate
+          pip list --outdated
+
+      - name: Check and fix with Ruff
+        run: |
+          source venv/bin/activate
+          ruff check . --fix --exit-non-zero-on-fix
+
+      - name: Format with Ruff
+        run: |
+          source venv/bin/activate
+          ruff format
+
+      - name: Tests with Pytest
+        run: |
+          source venv/bin/activate
+          PYTHONPATH=${PWD} coverage run -m pytest --verbose --capture=no
+
+      - name: Report coverage
+        run: |
+          source venv/bin/activate
+          coverage report
