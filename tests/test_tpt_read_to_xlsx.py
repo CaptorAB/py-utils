@@ -31,6 +31,16 @@ class TptReadTestError(Exception):
     """Exception raised when a test condition is not met."""
 
 
+def create_mock_response(
+    response_data: dict[str, list[dict[str, int]] | dict[str, str]],
+) -> MagicMock:
+    """Create a mock response object with json and raise_for_status methods."""
+    mock = MagicMock()
+    mock.json = lambda: response_data
+    mock.raise_for_status = lambda: None
+    return mock
+
+
 SMALL_VALUE_THRESHOLD = 0.000001
 TEST_VALUE = 0.1  # Used for testing non-small values
 
@@ -221,8 +231,7 @@ def test_collate_fund_tpt_reports_success() -> None:
         ]
 
         mock_get.side_effect = [
-            MagicMock(json=lambda response=response: response)
-            for response in mock_responses
+            create_mock_response(response) for response in mock_responses
         ]
 
         result = collate_fund_tpt_reports(
@@ -247,7 +256,7 @@ def test_collate_fund_tpt_reports_partial_failure() -> None:
 
         with patch("requests.get") as mock_get:
             mock_get.side_effect = [
-                MagicMock(json=lambda: {"name": "report1", "data": [{"col1": 1}]}),
+                create_mock_response({"name": "report1", "data": [{"col1": 1}]}),
                 requests.HTTPError("404 Not Found"),
             ]
 
@@ -383,7 +392,7 @@ def test_download_fund_tpt_report_retry() -> None:
         mock_get.side_effect = [
             requests.RequestException("First attempt failed"),
             requests.RequestException("Second attempt failed"),
-            MagicMock(json=lambda: {"name": "test_report", "data": [{"col1": 1}]}),
+            create_mock_response({"name": "test_report", "data": [{"col1": 1}]}),
         ]
 
         result = download_fund_tpt_report(
@@ -498,13 +507,12 @@ def test_collate_fund_tpt_reports_concatenation_error() -> None:
             },
             {
                 "name": "report2",
-                "data": None,  # Invalid data for DataFrame
+                "data": {"not": "a list"},  # Invalid data format
             },
         ]
 
         mock_get.side_effect = [
-            MagicMock(json=lambda response=response: response)
-            for response in mock_responses
+            create_mock_response(response) for response in mock_responses
         ]
 
         with pytest.raises(TPTProcessingError) as exc_info:
@@ -581,7 +589,7 @@ def test_download_fund_tpt_report_retry_success() -> None:
         # First attempt fails, second succeeds
         mock_get.side_effect = [
             requests.RequestException("First attempt failed"),
-            MagicMock(json=lambda: {"name": "test_report", "data": [{"col1": 1}]}),
+            create_mock_response({"name": "test_report", "data": [{"col1": 1}]}),
         ]
 
         result = download_fund_tpt_report(
@@ -620,8 +628,7 @@ def test_collate_fund_tpt_reports_error_handling() -> None:
         ]
 
         mock_get.side_effect = [
-            MagicMock(json=lambda response=response: response)
-            for response in mock_responses
+            create_mock_response(response) for response in mock_responses
         ]
 
         # Test with invalid output file
@@ -664,3 +671,41 @@ def test_main_block_execution_error() -> None:
             report_id="67a5ca93079b64d59bb66ccd",
             directory=Path.home() / "Documents",
         )
+
+
+def test_collate_fund_tpt_reports_success_with_mock_responses() -> None:
+    """Test successful collation of multiple TPT reports with mock responses."""
+    with (
+        tempfile.TemporaryDirectory() as temp_dir,
+        patch("requests.get") as mock_get,
+    ):
+        output_file = Path(temp_dir) / "collated.xlsx"
+        report_ids = ["id1", "id2"]
+
+        mock_responses = [
+            {
+                "name": "report1",
+                "data": [{"col1": 1, "col2": 2}],
+            },
+            {
+                "name": "report2",
+                "data": [{"col1": 3, "col2": 4}],
+            },
+        ]
+
+        mock_get.side_effect = [
+            create_mock_response(response) for response in mock_responses
+        ]
+
+        result = collate_fund_tpt_reports(
+            report_ids=report_ids,
+            sheetfile=output_file,
+        )
+
+        base_msg = "collate_fund_tpt_reports did not return expected result"
+        if result is None:
+            msg = f"{base_msg}: expected Path object, got None"
+            raise TptReadTestError(msg)
+        if not result.exists():
+            msg = f"{base_msg}: file {result} does not exist"
+            raise TptReadTestError(msg)

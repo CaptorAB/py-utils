@@ -18,6 +18,7 @@ try:
 except ImportError:
     from typing_extensions import Self
 
+
 import pandas as pd
 import pytest
 
