@@ -13,31 +13,37 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://beta.ruff.rs/docs/)
 [![GitHub License](https://img.shields.io/github/license/CaptorAB/py-utils)](https://github.com/CaptorAB/py-utils/blob/master/LICENSE)
 
-## Python version
+This project assumes that you will be able to install a compatible version and install the dependencies listed in the requirements.txt file.
 
-At Captor we are running python 3.13 at the moment. However, these utilities should run in all versions from 3.10. This project assumes that you will be able to install a compatible version and install the dependencies listed in the requirements.txt file.
+## GraphQL
 
-### graphql_client.py
+### [graphql_client.py](https://github.com/CaptorAB/py-utils/blob/master/graphql_client.py)
 
 An API client necessary to access the [Captor Graphql API](https://api.captor.se/graphql). It requires that you are a registered user that can be authenticated.
 
-### use_graphql.py
+### [use_graphql.py](https://github.com/CaptorAB/py-utils/blob/master/use_graphql.py)
 
 Contains a simple example of how to access data through the Captor Graphql API.
 
-### tpt_read_to_xlsx.py
+## Open API
+
+### [tpt_read_to_xlsx.py](https://github.com/CaptorAB/py-utils/blob/master/tpt_read_to_xlsx.py)
 
 Contains examples of how to extract TPT report data from the [Captor open API](https://api.captor.se/public/api/).
 
-### portfoliotool.py
+## Portfolio tools from [openseries](https://github.com/CaptorAB/openseries)
 
-Contains an example of how to extract timeseries data of NAV prices for Captor funds and use the [openseries](https://github.com/CaptorAB/openseries) package to calculate various key metrics.
+### [portfoliotool.py](https://github.com/CaptorAB/py-utils/blob/master/portfoliotool.py)
 
-### portfoliosimulation.py
+Contains an example of how to extract timeseries data of NAV prices for Captor funds and use the openseries package to calculate various key metrics.
+
+### [portfoliosimulation.py](https://github.com/CaptorAB/py-utils/blob/master/portfoliosimulation.py)
 
 Contains an example on how to use openseries to simulate portfolios.
 
-## attribution.py
+## Attribution analysis
+
+### [attribution.py](https://github.com/CaptorAB/py-utils/blob/master/attribution.py)
 
 Contains functions that fetch data on Captor funds to be used to do grouped instruments performance attribution. 
 The function that performs the calculation contains three different methods to link cumulative returns. 
@@ -45,10 +51,10 @@ Use 'simple' for shorter time periods and one of the other methods for longer pe
 The output is visualized in a Plotly area diagramme. 
 Below are examples of how to use. The files can be amended for other funds as needed.
 
-### aster_short.py
+### [aster_short.py](https://github.com/CaptorAB/py-utils/blob/master/aster_short.py)
 
 Utilises the attribution.py module to do performance analysis on the fund Captor Aster Global Credit Short-Term.
 
-### iris_bond.py
+### [iris_bond.py](https://github.com/CaptorAB/py-utils/blob/master/iris_bond.py)
 
 Utilises the attribution.py module to do performance analysis on the fund Captor Iris Bond.
