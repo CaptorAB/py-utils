@@ -1,4 +1,4 @@
-"""Captor Iris Bond attribution analysis module."""
+"""Captor Dahlia Green Bond attribution analysis module."""
 
 import datetime as dt
 from zoneinfo import ZoneInfo
@@ -16,7 +16,7 @@ from graphql_client import GraphqlClient
 if __name__ == "__main__":
     gql_client = GraphqlClient()
 
-    fund_id = "58e64b9523d2772e1859b705"
+    fund_id = "5b0d638cafcedd32f03a8ac7"
     fund_name = get_party_name(graphql=gql_client, party_id=fund_id)
 
     zone = ZoneInfo("Europe/Stockholm")
@@ -26,9 +26,10 @@ if __name__ == "__main__":
 
     _, cumperf, totserie, baseccy = compute_grouped_attribution_with_cumulative(
         data=perfdata,
-        group_by="modelType",
-        group_values=["Bond", "Swap"],
-        method="simple",
+        group_by="currency",
+        group_values=["SEK", "EUR", "NOK"],
+        method="logreturn",
+        consider_fxswap=True,
     )
 
     navserie = OpenTimeSeries.from_arrays(

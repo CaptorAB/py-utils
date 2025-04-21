@@ -18,14 +18,13 @@ if __name__ == "__main__":
 
     fund_id = "62690a20071ef07765246144"
     fund_name = get_party_name(graphql=gql_client, party_id=fund_id)
-    baseccy = "SEK"
 
     zone = ZoneInfo("Europe/Stockholm")
     today = dt.datetime.now(tz=zone).date()
     start = date_offset_foll(raw_date=today, months_offset=-3)
     perfdata = get_performance(graphql=gql_client, client_id=fund_id, start_dt=start)
 
-    _, cumperf, totserie = compute_grouped_attribution_with_cumulative(
+    _, cumperf, totserie, baseccy = compute_grouped_attribution_with_cumulative(
         data=perfdata, group_by="modelType", group_values=["CdsIndex"], method="simple"
     )
 
@@ -55,6 +54,4 @@ if __name__ == "__main__":
         title=fund_name,
         tick_fmt=".3%",
         filename=f"{fund_name.replace(' ', '').replace('-', '')}_area",
-        auto_open=True,
-        add_logo=True,
     )

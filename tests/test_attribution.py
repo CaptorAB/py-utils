@@ -168,7 +168,7 @@ def sample_data() -> dict[str, Any]:
 
 def test_compute_simple_method(sample_data: dict[str, Any]) -> None:
     """Test simple method sums daily contributions correctly."""
-    daily, cumu, total = am.compute_grouped_attribution_with_cumulative(
+    daily, cumu, total, _ = am.compute_grouped_attribution_with_cumulative(
         data=sample_data,
         group_by="modelType",
         group_values=["G1"],
@@ -205,7 +205,7 @@ def test_compute_simple_method(sample_data: dict[str, Any]) -> None:
 
 def test_compute_logreturn_method(sample_data: dict[str, Any]) -> None:
     """Test logreturn method compounds via log1p correctly."""
-    _, cumu, _ = am.compute_grouped_attribution_with_cumulative(
+    _, cumu, _, _ = am.compute_grouped_attribution_with_cumulative(
         data=sample_data,
         group_by="modelType",
         group_values=["G1"],
@@ -246,7 +246,7 @@ def test_compute_logreturn_error(sample_data: dict[str, Any]) -> None:
 
 def test_compute_carino_menchero_method(sample_data: dict[str, Any]) -> None:
     """Test Carino/Menchero linking for a single period."""
-    _, cumu, _ = am.compute_grouped_attribution_with_cumulative(
+    _, cumu, _, _ = am.compute_grouped_attribution_with_cumulative(
         data=sample_data,
         group_by="modelType",
         group_values=["G1"],

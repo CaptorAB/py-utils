@@ -37,6 +37,10 @@ class CannotCompoundReturnError(Exception):
     """Raised if the return cannot be compounded."""
 
 
+class FxLegError(Exception):
+    """Raised if the leg foreign currency parsing of an FxSwap is inconsistent."""
+
+
 def get_party_name(graphql: GraphqlClient, party_id: str) -> str:
     """Retrieve the long name of a party from the GraphQL API.
 
@@ -101,10 +105,20 @@ def get_performance(
                       endDate: $endDate
                     }
                   ) {
+                    currency
                     dates
                     series
                     instrumentPerformances {
-                      instrument{ modelType currency }
+                      instrument {
+                        _id
+                        modelType
+                        currency
+                        model {
+                          legs {
+                            currency
+                          }
+                        }
+                      }
                       values
                       cashFlows
                     }
@@ -132,10 +146,13 @@ def compute_grouped_attribution_with_cumulative(
     group_by: str,
     group_values: list[str],
     method: Literal["simple", "logreturn", "carino_menchero"],
+    *,
+    consider_fxswap: bool = False,
 ) -> tuple[
     dict[str, list[dict[str, str | float]]],
     dict[str, list[dict[str, str | float]]],
     list[dict[str, str | float]],
+    str,
 ]:
     """Compute daily and cumulative return attribution by group.
 
@@ -153,6 +170,7 @@ def compute_grouped_attribution_with_cumulative(
             - "simple": arithmetic running-sum
             - "logreturn": geometric via log returns
             - "carino_menchero": Carino/Menchero linking adjustment
+        consider_fxswap: bool flag whether to apply separate handling of FxSwaps
 
     Returns:
         A tuple of three elements:
@@ -170,8 +188,11 @@ def compute_grouped_attribution_with_cumulative(
 
         UnknownCompoundMethodError: Raised if the return cannot be compounded.
 
+        FxLegError: Raised if the leg currency parsing of an FxSwap is inconsistent.
+
     """
     performances = data.get("instrumentPerformances")
+    currency = data.get("currency")
     dates = data.get("dates")
     series = data.get("series")
     n_days = len(dates)
@@ -192,6 +213,24 @@ def compute_grouped_attribution_with_cumulative(
             curr_value = perf["values"][t]
             flow = perf["cashFlows"][t]
             category = perf["instrument"][group_by]
+            if (
+                consider_fxswap
+                and perf["instrument"]["modelType"] == "FxSwap"
+                and group_by == "currency"
+            ):
+                leg_ccies = [
+                    leg["currency"]
+                    for leg in perf["instrument"]["model"]["legs"]
+                    if leg["currency"] != currency
+                ]
+                if len(leg_ccies) >= 1:
+                    category = leg_ccies[0]
+                else:
+                    msg = (
+                        "Unable to parse foreign currency from "
+                        f"FxSwap with _id {perf['instrument']['_id']}"
+                    )
+                    raise FxLegError(msg)
             grp = category if category in group_values else "Other"
             delta = curr_value - prev_value - flow
             daily_contribs[grp][t] += delta / total_prev_value
@@ -262,7 +301,7 @@ def compute_grouped_attribution_with_cumulative(
             for t in range(n_days)
         ]
 
-    return daily_series, cumulative_series, total_series
+    return daily_series, cumulative_series, total_series, currency
 
 
 def attribution_area(

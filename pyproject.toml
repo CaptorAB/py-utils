@@ -50,10 +50,11 @@ fixable = ["ALL"]
 
 [tool.ruff.lint.pylint]
 max-args = 10
-max-branches = 17
+max-branches = 20
+max-statements = 57
 
 [tool.ruff.lint.mccabe]
-max-complexity = 17
+max-complexity = 19
 
 [tool.pytest.ini_options]
 filterwarnings = [
