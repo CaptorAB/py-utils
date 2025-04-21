@@ -58,3 +58,7 @@ Utilises the attribution.py module to do performance analysis on the fund Captor
 ### [iris_bond.py](https://github.com/CaptorAB/py-utils/blob/master/iris_bond.py)
 
 Utilises the attribution.py module to do performance analysis on the fund Captor Iris Bond.
+
+### [dahlia_greenbond.py](https://github.com/CaptorAB/py-utils/blob/master/dahlia_greenbond.py)
+
+Utilises the attribution.py module to do performance analysis on the fund Captor Dahlia Green Bond.
