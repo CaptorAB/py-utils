@@ -1,5 +1,9 @@
 name: test_all
 
+permissions:
+  contents: read
+  checks: write
+
 on: workflow_dispatch
 
 jobs:
