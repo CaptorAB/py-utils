@@ -17,8 +17,8 @@ import math
 from pathlib import Path
 from typing import Any, Literal
 
-from openseries import OpenFrame, OpenTimeSeries
-from pandas import concat
+from openseries import OpenFrame, OpenTimeSeries, load_plotly_dict
+from pandas import DataFrame, concat
 from plotly.graph_objs import Figure
 from plotly.offline import plot
 
@@ -419,3 +419,80 @@ def attribution_area(
     )
 
     return figure, Path(plotfile)
+
+
+def attribution_waterfall(
+    data: OpenFrame,
+    filename: str,
+    title: str | None = None,
+    directory: str | None = None,
+    *,
+    auto_open: bool = True,
+) -> (Figure, Path):
+    """Create and save a waterfall chart of attribution series with Plotly.
+
+    Args:
+        data: OpenFrame containing group time series data.
+        filename: Base filename (without extension) for the saved plot.
+        title: Optional chart title.
+        directory: Directory to write the HTML file. Defaults to ~/Documents.
+        auto_open: If True, open the HTML file after saving.
+
+    Returns:
+        A tuple (figure, filepath) where figure is the Plotly Figure object
+        and filepath is the Path to the saved HTML file.
+
+    """
+    if directory is None:
+        directory = Path.home() / "Documents"
+    plotfile = directory / f"{filename}.html"
+
+    retdata = data.value_ret.copy()
+    ret_names = retdata.index.get_level_values(0).tolist()
+    retdata = list(retdata.values)
+    retdata.append(sum(retdata))
+    ret_df = DataFrame(
+        data=retdata,
+        index=[*ret_names, "TOTAL"],
+        columns=["Accumulated Returns"],
+    )
+
+    retformats = ["{:+.2%}"] * (ret_df.shape[0] - 1) + ["{:.2%}"]
+    rettext = [
+        fmt.format(t) for fmt, t in zip(retformats, ret_df.iloc[:, 0], strict=False)
+    ]
+
+    fig, logo = load_plotly_dict()
+    figure = Figure(fig)
+    figure.add_waterfall(
+        orientation="v",
+        measure=["relative"] * (ret_df.shape[0] - 1) + ["total"],
+        decreasing={"marker": {"color": "#D98880"}},
+        increasing={"marker": {"color": "#76D7C4"}},
+        totals={"marker": {"color": "#85C1E9"}},
+        x=ret_df.index.tolist(),
+        y=ret_df.iloc[:, 0].values,
+        textposition="auto",
+        text=rettext,
+        connector={"visible": False},
+    )
+    figure.update_layout(
+        waterfallgap=0.4,
+        showlegend=False,
+        margin={"t": 70},
+    )
+    figure.update_xaxes(gridcolor="#EEEEEE", automargin=True)
+    figure.update_yaxes(tickformat=".2%", gridcolor="#EEEEEE", automargin=True)
+
+    if title is not None:
+        figure.update_layout(title={"text": title, "font": {"size": 32}})
+
+    plot(
+        figure_or_data=figure,
+        filename=str(plotfile),
+        auto_open=auto_open,
+        link_text="",
+        include_plotlyjs="cdn",
+    )
+
+    return figure, plotfile
