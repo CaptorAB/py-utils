@@ -11,20 +11,21 @@ Targets Python 3.13 and follows Ruff standards.
 import datetime as dt
 import math
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from openseries import OpenFrame
+
+    from graphql_client import GraphqlClient
 
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-# noinspection PyUnresolvedReferences
-from openseries import OpenFrame
 import pandas as pd
 import pytest
 
-# noinspection PyUnresolvedReferences
-from graphql_client import GraphqlClient
 import attribution as am
 from attribution import (
     CannotCompoundReturnError,
@@ -102,7 +103,9 @@ class TestAttribution:
     ) -> None:
         """Test get_party_name returns correct longName on success."""
         # noinspection PyUnresolvedReferences
-        result = am.get_party_name(graphql=cast("GraphqlClient", graphql_client_success), party_id="id123")
+        result = am.get_party_name(
+            graphql=cast("GraphqlClient", graphql_client_success), party_id="id123"
+        )
         msg = f"Expected 'Sample Fund', got '{result}'"
         if result != "Sample Fund":
             raise AttributionTestError(msg)
@@ -113,7 +116,9 @@ class TestAttribution:
         """Test get_party_name raises GraphqlError on API error."""
         raised = False
         try:
-            am.get_party_name(graphql=cast("GraphqlClient", graphql_client_error), party_id="id123")
+            am.get_party_name(
+                graphql=cast("GraphqlClient", graphql_client_error), party_id="id123"
+            )
         except am.GraphqlError:
             raised = True
         msg = "GraphqlError was not raised for error response"
@@ -136,7 +141,9 @@ class TestAttribution:
             }
         }
         client = DummyGraphqlClient(payload, None)
-        result = am.get_performance(graphql=cast("GraphqlClient", client), client_id="c1")
+        result = am.get_performance(
+            graphql=cast("GraphqlClient", client), client_id="c1"
+        )
         expected_series = [0.0]
         rec_series = result.get("series")
         msg = f"Expected series {expected_series}, got {rec_series}"
@@ -372,6 +379,7 @@ class DummyFigure:
     def to_dict(self) -> dict[str, Any]:
         """Mock to_dict to return the figure data."""
         return {"data": self.traces, "layout": self.layout}
+
 
 # noinspection PyUnusedLocal
 def mock_plot(figure_or_data: Any, **kwargs: Any) -> str:  # noqa: ARG001
