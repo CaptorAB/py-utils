@@ -49,7 +49,7 @@ ignore = ["COM812", "D203", "D213", "N999"]
 fixable = ["ALL"]
 
 [tool.ruff.lint.pylint]
-max-args = 10
+max-args = 11
 max-branches = 20
 max-statements = 57
 

@@ -10,7 +10,7 @@ test:
 	venv/bin/genbadge coverage --silent --local --input-file coverage.xml --output-file coverage.svg
 
 lint:
-	venv/bin/ruff format .
+	venv/bin/ruff format
 	venv/bin/ruff check . --fix --exit-non-zero-on-fix
 
 clean:

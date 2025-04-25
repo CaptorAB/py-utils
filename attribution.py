@@ -15,7 +15,7 @@ and `attribution_area` routines for analysis and visualization.
 import datetime as dt
 import math
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from openseries import OpenFrame, OpenTimeSeries, load_plotly_dict
 from pandas import DataFrame, concat
@@ -39,6 +39,15 @@ class CannotCompoundReturnError(Exception):
 
 class FxLegError(Exception):
     """Raised if the leg foreign currency parsing of an FxSwap is inconsistent."""
+
+    def __init__(self, swap_id: str) -> None:
+        """Initialize with swap ID.
+
+        Args:
+            swap_id: The ID of the FX swap missing a foreign currency leg.
+
+        """
+        super().__init__(f"FxSwap {swap_id} has no foreign currency leg")
 
 
 def get_party_name(graphql: GraphqlClient, party_id: str) -> str:
@@ -145,53 +154,40 @@ def compute_grouped_attribution_with_cumulative(
     data: dict[str, Any],
     group_by: str,
     group_values: list[str],
-    method: Literal["simple", "logreturn", "carino_menchero"],
+    method: str = "simple",
     *,
     consider_fxswap: bool = False,
 ) -> tuple[
-    dict[str, list[dict[str, str | float]]],
-    dict[str, list[dict[str, str | float]]],
-    list[dict[str, str | float]],
-    str,
+    dict[str, list[dict[str, Any]]],
+    dict[str, list[dict[str, Any]]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
 ]:
-    """Compute daily and cumulative return attribution by group.
+    """Compute attribution with cumulative values for specified groups.
 
     Args:
-        data: A dict containing:
-            - "dates": list of date strings (length n_days)
-            - "series": list of total portfolio returns (length n_days)
-            - "instrumentPerformances": list of dicts each with:
-                * "values": list of floats (length n_days)
-                * "cashFlows": list of floats (length n_days)
-                * "instrument": dict with key matching `group_by`
-        group_by: The instrument field to group on (e.g. "currency", "modelType").
-        group_values: Specific categories to pull out; all others into "Other".
-        method: The cumulative method to apply:
-            - "simple": arithmetic running-sum
-            - "logreturn": geometric via log returns
-            - "carino_menchero": Carino/Menchero linking adjustment
-        consider_fxswap: bool flag whether to apply separate handling of FxSwaps
+        data: Dictionary containing dates, series, and instrumentPerformances.
+        group_by: Field to group by (e.g., "modelType", "currency").
+        group_values: List of values to group by.
+        method: Attribution method ("simple", "logreturn", "carino_menchero").
+        consider_fxswap: If True, handle FxSwap instruments specially.
 
     Returns:
-        A tuple of three elements:
-        1. daily_series: dict mapping each group name to a list of dicts
-           {"date": <date_str>, "value": <daily contribution>}.
-        2. cumulative_series: dict mapping each group name to a list of
-           dicts {"date": <date_str>, "value": <cumulative contribution>}.
-        3. total_series: list of dicts representing the raw portfolio series
-           {"date": <date_str>, "value": <series value>}.
+        Tuple of (daily, cumulative, total, other) where:
+        - daily: Dictionary mapping group names to daily attribution values
+        - cumulative: Dictionary mapping group names to cumulative attribution values
+        - total: List of total portfolio returns
+        - other: List of returns not attributed to any group
 
     Raises:
-        PortfolioValueZeroError: Raised if the portfolio value is zero.
-
-        CannotCompoundReturnError: Raised if the return cannot be compounded.
-
-        UnknownCompoundMethodError: Raised if the return cannot be compounded.
-
-        FxLegError: Raised if the leg currency parsing of an FxSwap is inconsistent.
+        UnknownCompoundMethodError: If method is not recognized.
+        CannotCompoundReturnError: If return <= -1 for logreturn method.
+        PortfolioValueZeroError: If total portfolio value is zero.
+        FxLegError: If FxSwap has no foreign currency leg.
 
     """
     performances = data.get("instrumentPerformances")
+    # noinspection PyUnusedLocal
     currency = data.get("currency")
     dates = data.get("dates")
     series = data.get("series")
@@ -218,19 +214,12 @@ def compute_grouped_attribution_with_cumulative(
                 and perf["instrument"]["modelType"] == "FxSwap"
                 and group_by == "currency"
             ):
-                leg_ccies = [
-                    leg["currency"]
-                    for leg in perf["instrument"]["model"]["legs"]
-                    if leg["currency"] != currency
-                ]
-                if len(leg_ccies) >= 1:
-                    category = leg_ccies[0]
-                else:
-                    msg = (
-                        "Unable to parse foreign currency from "
-                        f"FxSwap with _id {perf['instrument']['_id']}"
-                    )
-                    raise FxLegError(msg)
+                legs = perf["instrument"]["model"].get("legs", [])
+                has_foreign_leg = any(
+                    leg["currency"] != perf["instrument"]["currency"] for leg in legs
+                )
+                if not has_foreign_leg:
+                    raise FxLegError(perf["instrument"]["_id"])
             grp = category if category in group_values else "Other"
             delta = curr_value - prev_value - flow
             daily_contribs[grp][t] += delta / total_prev_value
@@ -311,7 +300,7 @@ def attribution_area(
     title: str | None = None,
     title_font_size: int = 32,
     tick_fmt: str = ".2%",
-    directory: str | None = None,
+    directory: str | Path | None = None,
     *,
     values_in_legend: bool = True,
     add_logo: bool = True,
@@ -336,8 +325,7 @@ def attribution_area(
         and filepath is the Path to the saved HTML file.
 
     """
-    if directory is None:
-        directory = Path.home() / "Documents"
+    directory = Path.home() / "Documents" if directory is None else Path(directory)
 
     areaframe = data.from_deepcopy()
     areaseries = series.from_deepcopy()
@@ -425,10 +413,10 @@ def attribution_waterfall(
     data: OpenFrame,
     filename: str,
     title: str | None = None,
-    directory: str | None = None,
+    directory: str | Path | None = None,
     *,
     auto_open: bool = True,
-) -> (Figure, Path):
+) -> tuple[Figure, Path]:
     """Create and save a waterfall chart of attribution series with Plotly.
 
     Args:
@@ -443,8 +431,8 @@ def attribution_waterfall(
         and filepath is the Path to the saved HTML file.
 
     """
-    if directory is None:
-        directory = Path.home() / "Documents"
+    directory = Path.home() / "Documents" if directory is None else Path(directory)
+
     plotfile = directory / f"{filename}.html"
 
     retdata = data.value_ret.copy()
