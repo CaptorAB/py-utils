@@ -11,17 +11,20 @@ Targets Python 3.13 and follows Ruff standards.
 import datetime as dt
 import math
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-
+# noinspection PyUnresolvedReferences
+from openseries import OpenFrame
 import pandas as pd
 import pytest
 
+# noinspection PyUnresolvedReferences
+from graphql_client import GraphqlClient
 import attribution as am
 from attribution import (
     CannotCompoundReturnError,
@@ -98,7 +101,8 @@ class TestAttribution:
         self, graphql_client_success: DummyGraphqlClient
     ) -> None:
         """Test get_party_name returns correct longName on success."""
-        result = am.get_party_name(graphql=graphql_client_success, party_id="id123")
+        # noinspection PyUnresolvedReferences
+        result = am.get_party_name(graphql=cast("GraphqlClient", graphql_client_success), party_id="id123")
         msg = f"Expected 'Sample Fund', got '{result}'"
         if result != "Sample Fund":
             raise AttributionTestError(msg)
@@ -109,7 +113,7 @@ class TestAttribution:
         """Test get_party_name raises GraphqlError on API error."""
         raised = False
         try:
-            am.get_party_name(graphql=graphql_client_error, party_id="id123")
+            am.get_party_name(graphql=cast("GraphqlClient", graphql_client_error), party_id="id123")
         except am.GraphqlError:
             raised = True
         msg = "GraphqlError was not raised for error response"
@@ -132,7 +136,7 @@ class TestAttribution:
             }
         }
         client = DummyGraphqlClient(payload, None)
-        result = am.get_performance(graphql=client, client_id="c1")
+        result = am.get_performance(graphql=cast("GraphqlClient", client), client_id="c1")
         expected_series = [0.0]
         rec_series = result.get("series")
         msg = f"Expected series {expected_series}, got {rec_series}"
@@ -144,7 +148,7 @@ class TestAttribution:
         client = DummyGraphqlClient(None, "fetch failed")
         raised = False
         try:
-            am.get_performance(graphql=client, client_id="c2")
+            am.get_performance(graphql=cast("GraphqlClient", client), client_id="c2")
         except am.GraphqlError:
             raised = True
         msg = "GraphqlError was not raised on performance fetch error"
@@ -369,7 +373,7 @@ class DummyFigure:
         """Mock to_dict to return the figure data."""
         return {"data": self.traces, "layout": self.layout}
 
-
+# noinspection PyUnusedLocal
 def mock_plot(figure_or_data: Any, **kwargs: Any) -> str:  # noqa: ARG001
     """Mock plotly.plot to return a div string."""
     return "<div>Mock Plotly Plot</div>"
@@ -403,10 +407,12 @@ class DummyFrame:
         """Return a copy of self."""
         return self
 
+    # noinspection PyUnusedLocal
     def merge_series(self, how: str) -> Self:  # noqa: ARG002
         """Merge series with specified method."""
         return self
 
+    # noinspection PyUnusedLocal
     def value_nan_handle(self, method: str) -> Self:  # noqa: ARG002
         """Handle NaN values with specified method."""
         return self
@@ -426,6 +432,7 @@ class DummyFrame:
         """
         self._value_ret_series = value
 
+    # noinspection PyUnusedLocal
     @staticmethod
     def plot_series(
         tick_fmt: str,  # noqa: ARG004
@@ -491,7 +498,7 @@ def test_attribution_waterfall() -> None:
 
     # Test basic waterfall
     fig, path = am.attribution_waterfall(
-        data=frame,
+        data=cast("OpenFrame", frame),
         filename="test",
         auto_open=False,
     )
@@ -519,7 +526,7 @@ def test_attribution_waterfall_custom_dir(tmp_path: Path) -> None:
     custom_dir = tmp_path / "custom"
     custom_dir.mkdir()
     fig, path = am.attribution_waterfall(
-        data=frame,
+        data=cast("OpenFrame", frame),
         filename="test",
         directory=str(custom_dir),
         auto_open=False,
@@ -547,7 +554,7 @@ def test_attribution_waterfall_title() -> None:
     # Test with custom title
     custom_title = "Custom Title"
     fig, _ = am.attribution_waterfall(
-        data=frame,
+        data=cast("OpenFrame", frame),
         filename="test",
         title=custom_title,
         auto_open=False,
