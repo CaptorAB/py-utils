@@ -11,7 +11,8 @@ Targets Python 3.13 and follows Ruff standards.
 import datetime as dt
 import math
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from shutil import rmtree as shutil_rmtree
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 if TYPE_CHECKING:
     from openseries import OpenFrame
@@ -446,6 +447,7 @@ class DummyFrame:
         tick_fmt: str,  # noqa: ARG004
         directory: Path,
         filename: str,
+        output_type: Literal["file", "div"] = "file",  # noqa: ARG004
         *,
         add_logo: bool,  # noqa: ARG004
         auto_open: bool,  # noqa: ARG004
@@ -522,7 +524,7 @@ def test_attribution_waterfall() -> None:
         raise AttributionTestError(msg2)
 
 
-def test_attribution_waterfall_custom_dir(tmp_path: Path) -> None:
+def test_attribution_waterfall_custom_dir() -> None:
     """Test attribution_waterfall with custom directory."""
     # Create test data with proper index
     value_data = pd.DataFrame({"value": [1.0, 2.0]}, index=["A", "B"])
@@ -531,12 +533,12 @@ def test_attribution_waterfall_custom_dir(tmp_path: Path) -> None:
     frame.value_ret = pd.Series([0.1, 0.2], index=["A", "B"])
 
     # Test with custom directory
-    custom_dir = tmp_path / "custom"
+    custom_dir = Path(__file__).parent / "custom"
     custom_dir.mkdir()
     fig, path = am.attribution_waterfall(
         data=cast("OpenFrame", frame),
         filename="test",
-        directory=str(custom_dir),
+        directory=custom_dir,
         auto_open=False,
     )
 
@@ -549,6 +551,8 @@ def test_attribution_waterfall_custom_dir(tmp_path: Path) -> None:
     msg2 = "Figure missing waterfall traces"
     if not fig_dict["data"]:
         raise AttributionTestError(msg2)
+
+    shutil_rmtree(custom_dir)
 
 
 def test_attribution_waterfall_title() -> None:
@@ -566,6 +570,7 @@ def test_attribution_waterfall_title() -> None:
         filename="test",
         title=custom_title,
         auto_open=False,
+        output_type="div",
     )
 
     # Verify figure has title in layout

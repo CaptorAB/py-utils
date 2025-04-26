@@ -14,8 +14,9 @@ and `attribution_area` routines for analysis and visualization.
 
 import datetime as dt
 import math
+from inspect import stack
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from openseries import OpenFrame, OpenTimeSeries, load_plotly_dict
 from pandas import DataFrame, concat
@@ -301,11 +302,12 @@ def attribution_area(
     title_font_size: int = 32,
     tick_fmt: str = ".2%",
     directory: str | Path | None = None,
+    output_type: Literal["file", "div"] = "file",
     *,
     values_in_legend: bool = True,
     add_logo: bool = True,
     auto_open: bool = True,
-) -> tuple[Figure, Path]:
+) -> tuple[Figure, Path | None]:
     """Create and save an area chart of attribution series with Plotly.
 
     Args:
@@ -316,16 +318,22 @@ def attribution_area(
         title_font_size: Font size for the title text.
         tick_fmt: Format string for axis ticks and legend values.
         directory: Directory to write the HTML file. Defaults to ~/Documents.
+        output_type: Plotly argument to set output as 'div' image or html 'file'
         values_in_legend: If True, append returns to legend labels.
         add_logo: If True, include the default logo in the chart.
         auto_open: If True, open the HTML file after saving.
 
     Returns:
-        A tuple (figure, filepath) where figure is the Plotly Figure object
-        and filepath is the Path to the saved HTML file.
+        A tuple (figure, filepath | None) where figure is the Plotly Figure object
+        and filepath is the Path to the saved HTML file or None if output_type='div'.
 
     """
-    directory = Path.home() / "Documents" if directory is None else Path(directory)
+    if directory:
+        dirpath = Path(directory).resolve()
+    elif Path.home().joinpath("Documents").exists():
+        dirpath = Path.home().joinpath("Documents")
+    else:
+        dirpath = Path(stack()[1].filename).parent
 
     areaframe = data.from_deepcopy()
     areaseries = series.from_deepcopy()
@@ -345,8 +353,9 @@ def attribution_area(
     figure, plotfile = areaframe.plot_series(
         auto_open=False,
         tick_fmt=tick_fmt,
-        directory=directory,
+        directory=dirpath,
         filename=f"{filename}.html",
+        output_type=output_type,
         add_logo=add_logo,
     )
 
@@ -398,15 +407,20 @@ def attribution_area(
             title={"text": f"<b>{title}</b>", "font": {"size": title_font_size}}
         )
 
-    plot(
-        figure_or_data=figure,
-        filename=plotfile,
-        auto_open=auto_open,
-        link_text="",
-        include_plotlyjs="cdn",
-    )
+    if output_type == "file":
+        plot(
+            figure_or_data=figure,
+            filename=plotfile,
+            auto_open=auto_open,
+            link_text="",
+            include_plotlyjs="cdn",
+            output_type=output_type,
+        )
+        rtn_file = Path(plotfile)
+    else:
+        rtn_file = None
 
-    return figure, Path(plotfile)
+    return figure, rtn_file
 
 
 def attribution_waterfall(
@@ -414,9 +428,10 @@ def attribution_waterfall(
     filename: str,
     title: str | None = None,
     directory: str | Path | None = None,
+    output_type: Literal["file", "div"] = "file",
     *,
     auto_open: bool = True,
-) -> tuple[Figure, Path]:
+) -> tuple[Figure, Path | None]:
     """Create and save a waterfall chart of attribution series with Plotly.
 
     Args:
@@ -424,16 +439,22 @@ def attribution_waterfall(
         filename: Base filename (without extension) for the saved plot.
         title: Optional chart title.
         directory: Directory to write the HTML file. Defaults to ~/Documents.
+        output_type: Plotly argument to set output as 'div' image or html 'file'
         auto_open: If True, open the HTML file after saving.
 
     Returns:
-        A tuple (figure, filepath) where figure is the Plotly Figure object
-        and filepath is the Path to the saved HTML file.
+        A tuple (figure, filepath | None) where figure is the Plotly Figure object
+        and filepath is the Path to the saved HTML file or None if output_type='div'.
 
     """
-    directory = Path.home() / "Documents" if directory is None else Path(directory)
+    if directory:
+        dirpath = Path(directory).resolve()
+    elif Path.home().joinpath("Documents").exists():
+        dirpath = Path.home().joinpath("Documents")
+    else:
+        dirpath = Path(stack()[1].filename).parent
 
-    plotfile = directory / f"{filename}.html"
+    plotfile = dirpath / f"{filename}.html"
 
     retdata = data.value_ret.copy()
     ret_names = retdata.index.get_level_values(0).tolist()
@@ -475,12 +496,16 @@ def attribution_waterfall(
     if title is not None:
         figure.update_layout(title={"text": title, "font": {"size": 32}})
 
-    plot(
-        figure_or_data=figure,
-        filename=str(plotfile),
-        auto_open=auto_open,
-        link_text="",
-        include_plotlyjs="cdn",
-    )
+    if output_type == "file":
+        plot(
+            figure_or_data=figure,
+            filename=str(plotfile),
+            auto_open=auto_open,
+            link_text="",
+            include_plotlyjs="cdn",
+            output_type=output_type,
+        )
+    else:
+        plotfile = None
 
     return figure, plotfile
