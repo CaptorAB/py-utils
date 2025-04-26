@@ -3,9 +3,9 @@ rules:
   unpinned-uses:
     config:
       policies:
-        actions/*: ref-pin
-        github/codeql-action/*: ref-pin
-        astral-sh/*: ref-pin
+        actions/*: hash-pin
+        github/codeql-action/*: hash-pin
+        astral-sh/*: hash-pin
 
   forbidden-uses:
     config:
