@@ -12,5 +12,7 @@ rules:
       allow:
         - actions/checkout
         - actions/setup-python
+        - github/codeql-action/init
+        - github/codeql-action/analyze
         - github/codeql-action/upload-sarif
         - astral-sh/setup-uv
