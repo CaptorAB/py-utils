@@ -1,0 +1,16 @@
+rules:
+
+  unpinned-uses:
+    config:
+      policies:
+        actions/*: ref-pin
+        github/codeql-action/*: ref-pin
+        astral-sh/*: ref-pin
+
+  forbidden-uses:
+    config:
+      allow:
+        - actions/checkout
+        - actions/setup-python
+        - github/codeql-action/upload-sarif
+        - astral-sh/setup-uv

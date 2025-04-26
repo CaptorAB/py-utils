@@ -2,7 +2,7 @@ name: test_all
 
 permissions:
   contents: read
-  checks: write
+  actions: read
 
 on: workflow_dispatch
 
@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Check out GitHub repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -76,6 +78,8 @@ jobs:
     steps:
       - name: Check out GitHub repository ${{ github.repository }}
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -131,6 +135,8 @@ jobs:
     steps:
       - name: Check out GitHub repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
