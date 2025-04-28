@@ -5,8 +5,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
 import requests
+from pandas import DataFrame, concat
 
 # Configure module logger
 logger = logging.getLogger(__name__)
@@ -88,15 +88,14 @@ def download_fund_tpt_report(
                 raise TPTProcessingError(INVALID_REPORT_FORMAT)
 
             try:
-                report_data = pd.DataFrame(data["data"])
-                processed_data = report_data.map(replace_small_values)
+                report_data = make_dataframe(data=data["data"])
             except Exception as e:
                 error_msg = PROCESSING_ERROR.format(error=str(e))
                 raise TPTProcessingError(error_msg) from e
 
             output_dir = directory or Path.cwd()
             output_file = output_dir / f"{data['name']}.xlsx"
-            processed_data.to_excel(output_file, index=False)
+            report_data.to_excel(output_file, index=False)
         except requests.RequestException as e:  # noqa: PERF203
             last_error = e
             if attempt == max_retries - 1:
@@ -152,9 +151,8 @@ def collate_fund_tpt_reports(
             raise TPTProcessingError(error_msg)
 
         try:
-            report_data = pd.DataFrame(data["data"])
-            processed_data = report_data.map(replace_small_values)
-            report_dataframes.append(processed_data)
+            report_data = make_dataframe(data=data["data"])
+            report_dataframes.append(report_data)
         except Exception as e:
             error_msg = REPORT_PROCESSING_ERROR.format(
                 report_id=report_id,
@@ -163,7 +161,7 @@ def collate_fund_tpt_reports(
             raise TPTProcessingError(error_msg) from e
 
     try:
-        result = pd.concat(report_dataframes, axis=0, ignore_index=True)
+        result = concat(report_dataframes, axis=0, ignore_index=True)
         result.to_excel(sheetfile, index=False)
     except Exception as e:
         error_msg = COLLATION_ERROR.format(error=str(e))
@@ -206,9 +204,24 @@ def replace_small_values(value: float | str | None) -> float | str | None:
     return value
 
 
+def make_dataframe(data: list[dict]) -> DataFrame:
+    """Replace very small numeric values with 0, sort columns and create DataFrame.
+
+    Args:
+        data: data to process.
+
+    Returns:
+        Pandas DataFrame with data cleaned and sorted.
+
+    """
+    dataframe = DataFrame(data=data)
+    sorted_columns = sorted(dataframe.columns, key=sort_key)
+    return dataframe[sorted_columns].apply(lambda col: col.map(replace_small_values))
+
+
 if __name__ == "__main__":
     xlsxpath = Path.home() / "Documents"
     _ = download_fund_tpt_report(
-        report_id="67a5ca93079b64d59bb66ccd",
+        report_id="67ebd2105a7185fa05031829",
         directory=xlsxpath,
     )
