@@ -11,6 +11,7 @@ rules:
     config:
       allow:
         - actions/checkout
+        - actions/github-script
         - actions/setup-python
         - github/codeql-action/init
         - github/codeql-action/analyze

@@ -5,7 +5,7 @@ permissions:
   actions: read
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
   push:
     branches:
       - "*" # matches every branch that doesn't contain a '/'
@@ -60,11 +60,30 @@ jobs:
           ruff format
 
       - name: Tests with Pytest
+        id: pytest
+        continue-on-error: true
         run: |
           source venv/bin/activate
           PYTHONPATH=${PWD} coverage run -m pytest --verbose --capture=no
 
+      - name: Create GitHub issue on failure
+        if: ${{ steps.pytest.outcome == 'failure' }}
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: 'CaptorAB',
+              repo: 'py-utils',
+              title: `Tests failed on ${new Date().toDateString()}`,
+              body: `See the full logs here: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`,
+            })
+
       - name: Report coverage
+        if: ${{ steps.pytest.outcome == 'success' }}
         run: |
           source venv/bin/activate
           coverage report
+
+      - name: Fail job if tests failed
+        if: ${{ steps.pytest.outcome == 'failure' }}
+        run: exit 1
