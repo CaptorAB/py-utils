@@ -7,6 +7,7 @@ from openseries import OpenFrame, OpenTimeSeries, date_offset_foll
 
 from attribution import (
     attribution_area,
+    attribution_waterfall,
     compute_grouped_attribution_with_cumulative,
     get_party_name,
     get_performance,
@@ -54,4 +55,9 @@ if __name__ == "__main__":
         title=fund_name,
         tick_fmt=".3%",
         filename=f"{fund_name.replace(' ', '').replace('-', '')}_area",
+    )
+
+    _, _ = attribution_waterfall(
+        data=frame,
+        filename=f"{fund_name.replace(' ', '').replace('-', '')}_waterfall",
     )
