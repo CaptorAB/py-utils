@@ -523,6 +523,8 @@ def test_attribution_waterfall() -> None:
     if not str(path).endswith(".html"):
         raise AttributionTestError(msg2)
 
+    path.unlink()
+
 
 def test_attribution_waterfall_custom_dir() -> None:
     """Test attribution_waterfall with custom directory."""
