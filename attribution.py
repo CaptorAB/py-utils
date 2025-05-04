@@ -408,6 +408,7 @@ def attribution_area(
         )
 
     if output_type == "file":
+        figdict, _ = load_plotly_dict()
         plot(
             figure_or_data=figure,
             filename=plotfile,
@@ -415,6 +416,7 @@ def attribution_area(
             link_text="",
             include_plotlyjs="cdn",
             output_type=output_type,
+            config=figdict["config"],
         )
         rtn_file = Path(plotfile)
     else:
@@ -471,8 +473,9 @@ def attribution_waterfall(
         fmt.format(t) for fmt, t in zip(retformats, ret_df.iloc[:, 0], strict=False)
     ]
 
-    fig, logo = load_plotly_dict()
-    figure = Figure(fig)
+    figdict, logo = load_plotly_dict()
+    figure = Figure(figdict)
+
     figure.add_waterfall(
         orientation="v",
         measure=["relative"] * (ret_df.shape[0] - 1) + ["total"],
@@ -504,6 +507,7 @@ def attribution_waterfall(
             link_text="",
             include_plotlyjs="cdn",
             output_type=output_type,
+            config=figdict["config"],
         )
     else:
         plotfile = None
