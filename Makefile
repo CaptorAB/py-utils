@@ -1,5 +1,6 @@
 venv: requirements.txt
 	python3 -m venv ./venv
+	venv/bin/python --version
 	venv/bin/pip install --upgrade pip wheel
 	venv/bin/pip install --upgrade -r requirements.txt
 
