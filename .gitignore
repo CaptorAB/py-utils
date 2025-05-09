@@ -10,6 +10,9 @@ coverage.xml
 # Environments
 /venv/
 
+# Poetry
+/.poetry/
+
 # Cursor
 /.cursor/
 

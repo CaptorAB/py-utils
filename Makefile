@@ -1,8 +1,14 @@
-venv: requirements.txt
-	python3 -m venv ./venv
+venv:
+	python -m venv ./venv
 	venv/bin/python --version
 	venv/bin/pip install --upgrade pip wheel
-	venv/bin/pip install --upgrade -r requirements.txt
+	venv/bin/pip install poetry==2.1.3
+
+install:
+	rm -f poetry.lock
+	rm -f requirements.txt
+	poetry install --no-root
+	poetry export --output requirements.txt
 
 test:
 	PYTHONPATH=${PWD} venv/bin/coverage run -m pytest --verbose --capture=no
@@ -16,3 +22,5 @@ lint:
 
 clean:
 	rm -rf venv
+	rm -f poetry.lock
+	rm -f requirements.txt
