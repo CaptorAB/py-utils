@@ -168,9 +168,9 @@ markupsafe==3.0.2 ; python_version >= "3.10" and python_version < "3.14" \
     --hash=sha256:f3818cb119498c0678015754eba762e0d61e5b52d34c8b13d770f0719f7b1d79 \
     --hash=sha256:f8b3d067f2e40fe93e1ccdd6b2e1d16c43140e76f02fb1319a05cf2b79d99430 \
     --hash=sha256:fcabf5ff6eea076f859677f5f0b6b5c1a51e70a376b0579e0eadef8db48c6b50
-narwhals==1.38.2 ; python_version >= "3.10" and python_version < "3.14" \
-    --hash=sha256:7c5fbc9f2b8e1d5d95f49dcef9c2d94bf17810de68c87ff195dc7d22f7b3eeb5 \
-    --hash=sha256:a33a182e32f18d794a04e7828a5c401fb26ce9083f609993e7e5064aace641c7
+narwhals==1.39.0 ; python_version >= "3.10" and python_version < "3.14" \
+    --hash=sha256:50b6778f4b4249eb86c88dd17c3907dd004a16ec25b02d5effaf226a2bcfb940 \
+    --hash=sha256:6f114def701fc6a23b0523ad53700ae545ad3f5ece041c64dc3ad59e699da43f
 numpy==2.2.5 ; python_version >= "3.10" and python_version < "3.14" \
     --hash=sha256:0255732338c4fdd00996c0421884ea8a3651eea555c3a56b84892b66f696eb70 \
     --hash=sha256:02f226baeefa68f7d579e213d0f3493496397d8f1cff5e2b222af274c86a552a \

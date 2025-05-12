@@ -10,6 +10,10 @@ install:
 	poetry install --no-root
 	poetry export --output requirements.txt
 
+update:
+	poetry update
+	poetry export --output requirements.txt
+
 test:
 	PYTHONPATH=${PWD} venv/bin/coverage run -m pytest --verbose --capture=no
 	venv/bin/coverage xml --quiet
