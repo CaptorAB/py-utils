@@ -518,14 +518,14 @@ et-xmlfile = "*"
 
 [[package]]
 name = "openseries"
-version = "1.8.2"
+version = "1.8.3"
 description = "Tools for analyzing financial timeseries."
 optional = false
 python-versions = "<3.14,>=3.10"
 groups = ["main"]
 files = [
-    {file = "openseries-1.8.2-py3-none-any.whl", hash = "sha256:76cc632da9e819b504923b9dbec13abca88dcc65384ff6791f8a426c96542d1e"},
-    {file = "openseries-1.8.2.tar.gz", hash = "sha256:13e4edac7948bbbd4ff78252a2835b85006e87da1b95946b937384bb7e41daf0"},
+    {file = "openseries-1.8.3-py3-none-any.whl", hash = "sha256:6f2ae704708fb86963419e975bf5cdb56c3f271b5985a9e487228597160400f5"},
+    {file = "openseries-1.8.3.tar.gz", hash = "sha256:7becbf7e078cab3bf181f56d13d4e69104ef4e93b613230014330f6ad9bbb02b"},
 ]
 
 [package.dependencies]
@@ -1179,14 +1179,14 @@ test = ["Cython", "array-api-strict (>=2.0,<2.1.1)", "asv", "gmpy2", "hypothesis
 
 [[package]]
 name = "setuptools"
-version = "80.4.0"
+version = "80.6.0"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
 files = [
-    {file = "setuptools-80.4.0-py3-none-any.whl", hash = "sha256:6cdc8cb9a7d590b237dbe4493614a9b75d0559b888047c1f67d49ba50fc3edb2"},
-    {file = "setuptools-80.4.0.tar.gz", hash = "sha256:5a78f61820bc088c8e4add52932ae6b8cf423da2aff268c23f813cfbb13b4006"},
+    {file = "setuptools-80.6.0-py3-none-any.whl", hash = "sha256:3f6586e9196c76f59857319fdca6571efd156a4b57d6069fd774145c4b5655a2"},
+    {file = "setuptools-80.6.0.tar.gz", hash = "sha256:79cf4c44dfd0b5fb890be2dccc3fbd405253ce3baedd2700b54880a75219ea25"},
 ]
 
 [package.extras]
