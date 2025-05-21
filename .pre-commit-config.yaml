@@ -1,0 +1,17 @@
+default_language_version:
+  python: python3
+
+repos:
+  - repo: https://github.com/python-poetry/poetry-plugin-export
+    rev: 1.9.0
+    hooks:
+      - id: poetry-export
+        name: Export Poetry requirements.txt
+        args:
+          - --format=requirements.txt
+          - --output=requirements.txt
+          - --without-hashes
+          - --all-groups
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
