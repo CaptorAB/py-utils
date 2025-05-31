@@ -57,7 +57,7 @@ switch ($task) {
         Ensure-PythonPath
         Write-Output "`nUsing Python in venv '$(Split-Path $env:VIRTUAL_ENV -Leaf)':"
         python --version
-        poetry update
+        poetry update --with dev
         poetry export --output requirements.txt --without-hashes --all-groups
     }
 

@@ -12,7 +12,7 @@ install:
 	poetry export --output requirements.txt --without-hashes --all-groups
 
 update:
-	poetry update
+	poetry update --with dev
 	poetry export --output requirements.txt --without-hashes --all-groups
 
 test:
