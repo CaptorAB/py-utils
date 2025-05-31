@@ -30,7 +30,9 @@ if __name__ == "__main__":
     assets = OpenFrame(
         [
             OpenTimeSeries.from_df(
-                simulations.to_dataframe(name="Asset", end=dt.date(2023, 12, 29)),
+                simulations.to_dataframe(
+                    name="Asset", end=dt.date(2023, 12, 29), markets="XSTO"
+                ),
                 column_nmbr=serie,
             )
             for serie in range(simulations.number_of_sims)
