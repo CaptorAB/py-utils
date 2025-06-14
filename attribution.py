@@ -76,6 +76,47 @@ def get_party_name(graphql: GraphqlClient, party_id: str) -> str:
     return data["party"]["longName"]
 
 
+def get_timeserie(
+    graphql: GraphqlClient, timeseries_id: str, name: str
+) -> OpenTimeSeries:
+    """Retrieve a timeserie from the GraphQL API.
+
+    Args:
+        graphql: A configured GraphqlClient instance.
+        timeseries_id: The GraphQL ID of the timeserie to query.
+        name: The name to display for the timeserie output
+
+    Returns:
+        An OpenTimeSeries object with the timeserie data
+
+    Raises:
+        GraphqlError: If the GraphQL API returns an error.
+
+    """
+    query = """ query ($_id: GraphQLObjectId, $includeItems: Boolean = true) {
+                  timeserie(_id: $_id, includeItems: $includeItems) {
+                    type
+                    instrument{ currency }
+                    dates
+                    values
+                  }
+                } """
+    variables = {"_id": timeseries_id}
+    data, error = graphql.query(query_string=query, variables=variables)
+
+    if error:
+        msg = str(error)
+        raise GraphqlError(msg)
+
+    return OpenTimeSeries.from_arrays(
+        name=name,
+        dates=data["timeserie"]["dates"],
+        values=data["timeserie"]["values"],
+        valuetype=data["timeserie"]["type"],
+        baseccy=data["timeserie"]["instrument"]["currency"],
+    )
+
+
 def get_performance(
     graphql: GraphqlClient,
     client_id: str,

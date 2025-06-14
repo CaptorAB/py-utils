@@ -3,7 +3,7 @@
 import datetime as dt
 from zoneinfo import ZoneInfo
 
-from openseries import OpenFrame, OpenTimeSeries, date_offset_foll
+from openseries import OpenFrame, OpenTimeSeries, date_offset_foll, report_html
 
 from attribution import (
     attribution_area,
@@ -11,6 +11,7 @@ from attribution import (
     compute_grouped_attribution_with_cumulative,
     get_party_name,
     get_performance,
+    get_timeserie,
 )
 from graphql_client import GraphqlClient
 
@@ -22,11 +23,14 @@ if __name__ == "__main__":
 
     zone = ZoneInfo("Europe/Stockholm")
     today = dt.datetime.now(tz=zone).date()
-    start = date_offset_foll(raw_date=today, months_offset=-3)
+    start = date_offset_foll(raw_date=today, months_offset=-33)
     perfdata = get_performance(graphql=gql_client, client_id=fund_id, start_dt=start)
 
     _, cumperf, totserie, baseccy = compute_grouped_attribution_with_cumulative(
-        data=perfdata, group_by="modelType", group_values=["CdsIndex"], method="simple"
+        data=perfdata,
+        group_by="modelType",
+        group_values=["CdsIndex"],
+        method="logreturn",
     )
 
     navserie = OpenTimeSeries.from_arrays(
@@ -60,4 +64,21 @@ if __name__ == "__main__":
     _, _ = attribution_waterfall(
         data=frame,
         filename=f"{fund_name.replace(' ', '').replace('-', '')}_waterfall",
+    )
+
+    compare_id = "637fe3c9d5c64606a55e3617"
+    compare_name = "Sweden Corporate FRN index"
+    compareserie = get_timeserie(
+        graphql=gql_client, timeseries_id=compare_id, name=compare_name
+    )
+    compareserie.plot_series()
+
+    compare = OpenFrame(constituents=[navserie, compareserie])
+    compare.trunc_frame()
+    report_html(
+        data=compare,
+        bar_freq="BQE",
+        title="Captor Aster Global Credit Short Term",
+        filename=f"{fund_name.replace(' ', '').replace('-', '')}_report.html",
+        auto_open=True,
     )
