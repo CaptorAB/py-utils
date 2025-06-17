@@ -9,7 +9,7 @@
 ![Platform](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 ![Python Versions](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)
 [![GitHub Action Test Suite](https://github.com/CaptorAB/py-utils/actions/workflows/tests.yml/badge.svg)](https://github.com/CaptorAB/py-utils/actions/workflows/tests.yml)
-[![Coverage](https://cdn.jsdelivr.net/gh/CaptorAB/py-utils@master/coverage.svg)](https://github.com/CaptorAB/py-utils/actions/workflows/tests.yml)
+[![codecov](https://img.shields.io/codecov/c/gh/CaptorAB/py-utils?logo=codecov)](https://codecov.io/gh/CaptorAB/py-utils/branch/master)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://beta.ruff.rs/docs/)
 [![GitHub License](https://img.shields.io/github/license/CaptorAB/py-utils)](https://github.com/CaptorAB/py-utils/blob/master/LICENSE.md)
 
@@ -45,10 +45,10 @@ Contains an example on how to use openseries to simulate portfolios.
 
 ### [attribution.py](https://github.com/CaptorAB/py-utils/blob/master/attribution.py)
 
-Contains functions that fetch data on Captor funds to be used to do grouped instruments performance attribution. 
-The function that performs the calculation contains three different methods to link cumulative returns. 
+Contains functions that fetch data on Captor funds to be used to do grouped instruments performance attribution.
+The function that performs the calculation contains three different methods to link cumulative returns.
 Use 'simple' for shorter time periods and one of the other methods for longer periods.
-The output is visualized in a Plotly area diagramme. 
+The output is visualized in a Plotly area diagramme.
 Below are examples of how to use. The files can be amended for other funds as needed.
 
 ### [aster_short.py](https://github.com/CaptorAB/py-utils/blob/master/aster_short.py)

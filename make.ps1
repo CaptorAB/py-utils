@@ -3,12 +3,12 @@
     Admin script for setting up, activating, and cleaning your project venv with Poetry.
 
 .PARAMETER task
-    What to do: 'active', 'make', 'update', or 'clean'.
+    What to do: 'active', 'make', 'update', 'test', 'lint' or 'clean'.
     Defaults to 'active'.
 #>
 
 param (
-    [ValidateSet("active","make","update","clean")]
+    [ValidateSet("active","make","update","test","lint","clean")]
     [string]$task = "active"
 )
 
@@ -68,8 +68,7 @@ switch ($task) {
         # if pyenv exists, pin it; otherwise verify system Python
         if (Test-Path "$env:USERPROFILE\.pyenv") {
             pyenv global  $pythonVersion
-            pyenv local   $pythonVersion
-            Write-Output "Set pyenv global & local to Python $pythonVersion."
+            Write-Output "Set pyenv global to Python $pythonVersion."
         } else {
             $sysVer = (& python --version 2>&1) -replace 'Python ', ''
             if ($sysVer -eq $pythonVersion) {
@@ -106,6 +105,15 @@ switch ($task) {
         poetry install --no-root --with dev
         poetry run pre-commit install
         poetry export --output requirements.txt --without-hashes --all-groups
+    }
+
+    "test" {
+        poetry run pytest -n auto --dist loadscope --cov=. --cov-report=term --cov-report=term-missing
+    }
+
+    "lint" {
+        poetry run ruff format
+        poetry run ruff check . --fix --exit-non-zero-on-fix
     }
 
     "clean" {

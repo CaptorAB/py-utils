@@ -6,6 +6,7 @@ rules:
         actions/*: hash-pin
         github/codeql-action/*: hash-pin
         astral-sh/*: hash-pin
+        codecov/*: hash-pin
 
   forbidden-uses:
     config:
@@ -18,3 +19,5 @@ rules:
         - github/codeql-action/analyze
         - github/codeql-action/upload-sarif
         - astral-sh/setup-uv
+        - codecov/codecov-action
+        - codecov/test-results-action
