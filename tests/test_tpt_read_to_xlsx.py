@@ -10,6 +10,7 @@ import pytest
 import requests
 from requests.exceptions import HTTPError, Timeout
 
+import tpt_read_to_xlsx
 from tpt_read_to_xlsx import (
     ABOVE_THRESHOLD_VALUE,
     CALL_COUNT_SUCCESS,
@@ -23,7 +24,6 @@ from tpt_read_to_xlsx import (
     sort_key,
 )
 
-# Configure test logger
 logger = logging.getLogger(__name__)
 
 
@@ -42,9 +42,8 @@ def create_mock_response(
 
 
 SMALL_VALUE_THRESHOLD = 0.000001
-TEST_VALUE = 0.1  # Used for testing non-small values
+TEST_VALUE = 0.1
 
-# Constants for test values
 EXPECTED_RETRY_CALL_COUNT = 2
 
 
@@ -72,7 +71,6 @@ def test_sort_key() -> None:
         msg = f"{base_msg} 'no_number_': expected (inf, 'no_number_'), got {result}"
         raise TptReadTestError(msg)
 
-    # Additional test cases
     result = sort_key("")
     if result != (float("inf"), ""):
         msg = f"{base_msg} '': expected (inf, ''), got {result}"
@@ -93,7 +91,6 @@ def test_replace_small_values() -> None:
     """Test replace_small_values function."""
     base_msg = "replace_small_values did not return expected value"
 
-    # Test small positive values
     result = replace_small_values(0.0000001)
     if result != 0.0:
         msg = f"{base_msg} for 0.0000001: expected 0.0, got {result}"
@@ -104,13 +101,11 @@ def test_replace_small_values() -> None:
         msg = f"{base_msg} for 0.0000009: expected 0.0, got {result}"
         raise TptReadTestError(msg)
 
-    # Test small negative values
     result = replace_small_values(-0.0000001)
     if result != 0.0:
         msg = f"{base_msg} for -0.0000001: expected 0.0, got {result}"
         raise TptReadTestError(msg)
 
-    # Test values above threshold
     result = replace_small_values(ABOVE_THRESHOLD_VALUE)
     if result != ABOVE_THRESHOLD_VALUE:
         msg = (
@@ -124,7 +119,6 @@ def test_replace_small_values() -> None:
         msg = f"{base_msg} for {TEST_VALUE}: expected {TEST_VALUE}, got {result}"
         raise TptReadTestError(msg)
 
-    # Test non-numeric values
     result = replace_small_values("string")
     if result != "string":
         msg = f"{base_msg} for 'string': expected 'string', got {result}"
@@ -135,7 +129,6 @@ def test_replace_small_values() -> None:
         msg = f"{base_msg} for None: expected None, got {result}"
         raise TptReadTestError(msg)
 
-    # Test integer values
     result = replace_small_values(1)
     if result != 1:
         msg = f"{base_msg} for 1: expected 1, got {result}"
@@ -327,7 +320,7 @@ def test_download_fund_tpt_report_processing_error() -> None:
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "name": "test_report",
-            "data": "invalid_data",  # This will cause a processing error
+            "data": "invalid_data",
         }
         mock_get.return_value = mock_response
 
@@ -348,7 +341,7 @@ def test_collate_fund_tpt_reports_processing_error() -> None:
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "name": "test_report",
-            "data": "invalid_data",  # This will cause a processing error
+            "data": "invalid_data",
         }
         mock_get.return_value = mock_response
 
@@ -364,12 +357,8 @@ def test_main_block_execution() -> None:
     with patch("tpt_read_to_xlsx.download_fund_tpt_report") as mock_download:
         mock_download.return_value = Path("test.xlsx")
 
-        # Import and execute the main block
-        import tpt_read_to_xlsx
-
         tpt_read_to_xlsx.__name__ = "__main__"
 
-        # Execute the main block code directly instead of reading the file
         xlsxpath = Path.home() / "Documents"
         _ = tpt_read_to_xlsx.download_fund_tpt_report(
             report_id="67a5ca93079b64d59bb66ccd",
@@ -388,7 +377,6 @@ def test_download_fund_tpt_report_retry() -> None:
         tempfile.TemporaryDirectory() as temp_dir,
         patch("requests.get") as mock_get,
     ):
-        # First two attempts fail, third succeeds
         mock_get.side_effect = [
             requests.RequestException("First attempt failed"),
             requests.RequestException("Second attempt failed"),
@@ -461,7 +449,7 @@ def test_collate_fund_tpt_reports_invalid_data() -> None:
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "name": "test_report",
-            "data": "invalid_data",  # Not a list of dictionaries
+            "data": "invalid_data",
         }
         mock_get.return_value = mock_response
 
@@ -482,7 +470,6 @@ def test_collate_fund_tpt_reports_missing_data() -> None:
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "name": "test_report",
-            # Missing "data" field
         }
         mock_get.return_value = mock_response
 
@@ -507,7 +494,7 @@ def test_collate_fund_tpt_reports_concatenation_error() -> None:
             },
             {
                 "name": "report2",
-                "data": {"not": "a list"},  # Invalid data format
+                "data": {"not": "a list"},
             },
         ]
 
@@ -521,7 +508,6 @@ def test_collate_fund_tpt_reports_concatenation_error() -> None:
                 sheetfile=output_file,
             )
 
-        # Check that the error message contains the report ID
         error_msg = str(exc_info.value)
         if "id2" not in error_msg:
             msg = f"Expected error message to contain 'id2', got: {error_msg}"
@@ -532,25 +518,21 @@ def test_sort_key_edge_cases() -> None:
     """Test sort_key function with edge cases."""
     base_msg = "sort_key did not return expected tuple for edge case"
 
-    # Test with only underscore
     result = sort_key("_")
     if result != (float("inf"), "_"):
         msg = f"{base_msg} '_': expected (inf, '_'), got {result}"
         raise TptReadTestError(msg)
 
-    # Test with empty string
     result = sort_key("")
     if result != (float("inf"), ""):
         msg = f"{base_msg} '': expected (inf, ''), got {result}"
         raise TptReadTestError(msg)
 
-    # Test with no underscore
     result = sort_key("123")
     if result != (float("inf"), "123"):
         msg = f"{base_msg} '123': expected (inf, '123'), got {result}"
         raise TptReadTestError(msg)
 
-    # Test with multiple numbers
     result = sort_key("123A_")
     if result != (123, "A"):
         msg = f"{base_msg} '123A_': expected (123, 'A'), got {result}"
@@ -561,19 +543,16 @@ def test_replace_small_values_edge_cases() -> None:
     """Test replace_small_values function with edge cases."""
     base_msg = "replace_small_values did not return expected value for edge case"
 
-    # Test with zero
     result = replace_small_values(0)
     if result != 0:
         msg = f"{base_msg} 0: expected 0, got {result}"
         raise TptReadTestError(msg)
 
-    # Test with negative zero
     result = replace_small_values(-0.0)
     if result != 0:
         msg = f"{base_msg} -0.0: expected 0, got {result}"
         raise TptReadTestError(msg)
 
-    # Test with very small negative value
     result = replace_small_values(-0.0000009)
     if result != 0:
         msg = f"{base_msg} -0.0000009: expected 0, got {result}"
@@ -586,7 +565,6 @@ def test_download_fund_tpt_report_retry_success() -> None:
         tempfile.TemporaryDirectory() as temp_dir,
         patch("requests.get") as mock_get,
     ):
-        # First attempt fails, second succeeds
         mock_get.side_effect = [
             requests.RequestException("First attempt failed"),
             create_mock_response({"name": "test_report", "data": [{"col1": 1}]}),
@@ -631,7 +609,6 @@ def test_collate_fund_tpt_reports_error_handling() -> None:
             create_mock_response(response) for response in mock_responses
         ]
 
-        # Test with invalid output file
         invalid_file = Path("/invalid/path/collated.xlsx")
         with pytest.raises(TPTProcessingError) as exc_info:
             collate_fund_tpt_reports(
@@ -639,7 +616,6 @@ def test_collate_fund_tpt_reports_error_handling() -> None:
                 sheetfile=invalid_file,
             )
 
-        # Check that the error message contains the expected text
         error_msg = str(exc_info.value)
         if "Error collating TPT reports" not in error_msg:
             msg = (
@@ -654,12 +630,8 @@ def test_main_block_execution_error() -> None:
     with patch("tpt_read_to_xlsx.download_fund_tpt_report") as mock_download:
         mock_download.side_effect = TPTProcessingError("Test error")
 
-        # Import and execute the main block
-        import tpt_read_to_xlsx
-
         tpt_read_to_xlsx.__name__ = "__main__"
 
-        # Execute the main block code directly instead of reading the file
         xlsxpath = Path.home() / "Documents"
         with pytest.raises(TPTProcessingError, match="Test error"):
             _ = tpt_read_to_xlsx.download_fund_tpt_report(
