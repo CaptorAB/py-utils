@@ -3,6 +3,7 @@ name: tests
 permissions:
   contents: read
   actions: read
+  issues: write
 
 on:
   workflow_dispatch: {}
