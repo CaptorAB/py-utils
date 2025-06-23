@@ -71,7 +71,6 @@ if __name__ == "__main__":
     compareserie = get_timeserie(
         graphql=gql_client, timeseries_id=compare_id, name=compare_name
     )
-    compareserie.plot_series()
 
     compare = OpenFrame(constituents=[navserie, compareserie])
     compare.trunc_frame()
