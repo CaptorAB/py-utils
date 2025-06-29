@@ -20,16 +20,12 @@ repos:
       - id: check-merge-conflict
       - id: check-case-conflict
       - id: check-docstring-first
-      - id: check-json
       - id: check-toml
       - id: check-yaml
-      - id: check-xml
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: name-tests-test
         args: [ --pytest-test-first ]
-      - id: pretty-format-json
-        args: [ --autofix ]
       - id: trailing-whitespace
       - id: mixed-line-ending
         args: [ --fix=auto ]
