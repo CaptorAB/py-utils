@@ -1,6 +1,6 @@
 .ONESHELL:
 
-.PHONY: all install test lint clean
+.PHONY: all install update test lint clean
 
 all: install
 
