@@ -352,14 +352,14 @@ python-dateutil = "*"
 
 [[package]]
 name = "identify"
-version = "2.6.13"
+version = "2.6.14"
 description = "File identification library for Python"
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
 files = [
-    {file = "identify-2.6.13-py2.py3-none-any.whl", hash = "sha256:60381139b3ae39447482ecc406944190f690d4a2997f2584062089848361b33b"},
-    {file = "identify-2.6.13.tar.gz", hash = "sha256:da8d6c828e773620e13bfa86ea601c5a5310ba4bcd65edf378198b56a1f9fb32"},
+    {file = "identify-2.6.14-py2.py3-none-any.whl", hash = "sha256:11a073da82212c6646b1f39bb20d4483bfb9543bd5566fec60053c4bb309bf2e"},
+    {file = "identify-2.6.14.tar.gz", hash = "sha256:663494103b4f717cb26921c52f8751363dc89db64364cd836a9bf1535f53cd6a"},
 ]
 
 [package.extras]
@@ -692,14 +692,14 @@ et-xmlfile = "*"
 
 [[package]]
 name = "openseries"
-version = "1.9.4"
+version = "1.9.5"
 description = "Tools for analyzing financial timeseries."
 optional = false
 python-versions = "<3.14,>=3.10"
 groups = ["main"]
 files = [
-    {file = "openseries-1.9.4-py3-none-any.whl", hash = "sha256:60d537e0e3301c8b0e22c6a5e13c711a401bdf4716592506e8683d38e6c820c5"},
-    {file = "openseries-1.9.4.tar.gz", hash = "sha256:30bec71e99e2f2df412c7f2576c737787aa1e7ff4762f50607ec20a81ff44466"},
+    {file = "openseries-1.9.5-py3-none-any.whl", hash = "sha256:6ddee91d92c64092c79806b713bbd8b409b9a252b31ed21f4f99d234bcb2ee7c"},
+    {file = "openseries-1.9.5.tar.gz", hash = "sha256:86f200a8ba16a2c5761ea38a8eb92fc5b080293c8261de17c08552ccbad7e01f"},
 ]
 
 [package.dependencies]
@@ -1099,14 +1099,14 @@ dev = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "requests
 
 [[package]]
 name = "pytest-cov"
-version = "6.2.1"
+version = "6.3.0"
 description = "Pytest plugin for measuring coverage."
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
 files = [
-    {file = "pytest_cov-6.2.1-py3-none-any.whl", hash = "sha256:f5bc4c23f42f1cdd23c70b1dab1bbaef4fc505ba950d53e0081d0730dd7e86d5"},
-    {file = "pytest_cov-6.2.1.tar.gz", hash = "sha256:25cc6cc0a5358204b8108ecedc51a9b57b34cc6b8c967cc2c01a4e00d8a67da2"},
+    {file = "pytest_cov-6.3.0-py3-none-any.whl", hash = "sha256:440db28156d2468cafc0415b4f8e50856a0d11faefa38f30906048fe490f1749"},
+    {file = "pytest_cov-6.3.0.tar.gz", hash = "sha256:35c580e7800f87ce892e687461166e1ac2bcb8fb9e13aea79032518d6e503ff2"},
 ]
 
 [package.dependencies]
