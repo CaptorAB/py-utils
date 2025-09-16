@@ -466,6 +466,7 @@ def attribution_area(
     return figure, rtn_file
 
 
+# noinspection PyPackages
 def attribution_waterfall(
     data: OpenFrame,
     filename: str,
@@ -514,7 +515,7 @@ def attribution_waterfall(
         fmt.format(t) for fmt, t in zip(retformats, ret_df.iloc[:, 0], strict=False)
     ]
 
-    figdict, logo = load_plotly_dict()
+    figdict, _ = load_plotly_dict()
     figure = Figure(figdict)
 
     figure.add_waterfall(
