@@ -78,8 +78,7 @@ if __name__ == "__main__":
     basket.add_timeseries(portfolio)
 
     figure, plotfile = basket.plot_series(
-        tick_fmt=".1%",
-        filename="portfolioplot.html",
+        tick_fmt=".1%", filename="portfolioplot.html", title="Captor Funds"
     )
 
     prop_df = basket.all_properties(

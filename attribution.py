@@ -135,20 +135,20 @@ def get_performance(
         look_through: Whether to include underlying holdings in performance.
 
     Returns:
-        A dict representing the 'performance2' field from the API response.
+        A dict representing the 'performance' field from the API response.
 
     Raises:
         GraphqlError: If the GraphQL API returns an error or the response
             fails Pydantic validation.
 
     """
-    query = """ query performance2(
+    query = """ query performance(
                   $clientId: GraphQLObjectId!,
                   $startDate: GraphQLDateString,
                   $endDate: GraphQLDateString,
                   $lookThrough: Boolean = false
                 ) {
-                  performance2(
+                  performance(
                     clientId: $clientId,
                     lookThrough: $lookThrough
                     filter: {
@@ -189,7 +189,7 @@ def get_performance(
         msg = str(error)
         raise GraphqlError(msg)
 
-    return data["performance2"]
+    return data["performance"]
 
 
 def compute_grouped_attribution_with_cumulative(

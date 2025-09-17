@@ -1,9 +1,10 @@
 """Captor Dahlia Green Bond attribution analysis module."""
 
-import datetime as dt
-from zoneinfo import ZoneInfo
-
-from openseries import OpenFrame, OpenTimeSeries, date_offset_foll
+from openseries import (
+    OpenFrame,
+    OpenTimeSeries,
+    get_previous_business_day_before_today,
+)
 
 from attribution import (
     attribution_area,
@@ -20,10 +21,11 @@ if __name__ == "__main__":
     fund_id = "5b0d638cafcedd32f03a8ac7"
     fund_name = get_party_name(graphql=gql_client, party_id=fund_id)
 
-    zone = ZoneInfo("Europe/Stockholm")
-    today = dt.datetime.now(tz=zone).date()
-    start = date_offset_foll(raw_date=today, months_offset=-3)
-    perfdata = get_performance(graphql=gql_client, client_id=fund_id, start_dt=start)
+    start = None
+    end = get_previous_business_day_before_today()
+    perfdata = get_performance(
+        graphql=gql_client, client_id=fund_id, start_dt=start, end_dt=end
+    )
 
     _, cumperf, totserie, baseccy = compute_grouped_attribution_with_cumulative(
         data=perfdata,

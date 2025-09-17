@@ -1,8 +1,11 @@
 """Captor Aster Global Credit attribution analysis module."""
 
-import datetime as dt
-
-from openseries import OpenFrame, OpenTimeSeries, report_html
+from openseries import (
+    OpenFrame,
+    OpenTimeSeries,
+    get_previous_business_day_before_today,
+    report_html,
+)
 
 from attribution import (
     attribution_area,
@@ -20,8 +23,8 @@ if __name__ == "__main__":
     fund_id = "605b2e5cc34cf5001154c90d"
     fund_name = get_party_name(graphql=gql_client, party_id=fund_id)
 
-    start = dt.date(2024, 12, 30)
-    end = dt.date(2025, 8, 29)
+    start = None
+    end = get_previous_business_day_before_today()
     perfdata = get_performance(
         graphql=gql_client, client_id=fund_id, start_dt=start, end_dt=end
     )

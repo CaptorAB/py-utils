@@ -127,9 +127,9 @@ class TestAttribution:
             raise AttributionTestError(msg)
 
     def test_get_performance_success(self) -> None:
-        """Test get_performance returns performance2 dict on success."""
+        """Test get_performance returns performance dict on success."""
         payload = {
-            "performance2": {
+            "performance": {
                 "dates": ["2025-01-01"],
                 "series": [0.0],
                 "instrumentPerformances": [
