@@ -258,7 +258,7 @@ def make_dataframe(data: list[dict]) -> DataFrame:
 
 
 if __name__ == "__main__":
-    rpt_date = dt.date(2025, 4, 30)
+    rpt_date = dt.date(2025, 8, 29)
     xlsxpath = (
         Path.home() / "Documents" / f"allreports_{rpt_date.strftime('%Y%m%d')}.xlsx"
     )

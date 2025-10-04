@@ -229,17 +229,14 @@ def compute_grouped_attribution_with_cumulative(
 
     """
     performances = data.get("instrumentPerformances")
-    # noinspection PyUnusedLocal
     currency = data.get("currency")
     dates = data.get("dates")
     series = data.get("series")
     n_days = len(dates)
-    # noinspection PyUnusedLocal
     total_series = [{"date": dates[t], "value": series[t]} for t in range(n_days)]
 
     groups = [*group_values, "Other"]
 
-    # Compute daily contributions
     daily_contribs: dict[str, list[float]] = {grp: [0.0] * n_days for grp in groups}
     for t in range(1, n_days):
         total_prev_value = sum(perf["values"][t - 1] for perf in performances)
@@ -266,7 +263,6 @@ def compute_grouped_attribution_with_cumulative(
             delta = curr_value - prev_value - flow
             daily_contribs[grp][t] += delta / total_prev_value
 
-    # Compute cumulative contributions per method
     cumulative_contribs: dict[str, list[float]] = {
         grp: [0.0] * n_days for grp in groups
     }
@@ -320,7 +316,6 @@ def compute_grouped_attribution_with_cumulative(
         msg = f"Unknown method '{method}'"
         raise UnknownCompoundMethodError(msg)
 
-    # noinspection PyUnreachableCode
     daily_series: dict[str, list[dict[str, str | float]]] = {}
     cumulative_series: dict[str, list[dict[str, str | float]]] = {}
     for grp in groups:
@@ -466,7 +461,6 @@ def attribution_area(
     return figure, rtn_file
 
 
-# noinspection PyPackages
 def attribution_waterfall(
     data: OpenFrame,
     filename: str,
