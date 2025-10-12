@@ -10,7 +10,7 @@ maintainers = [
 ]
 license = { file = "LICENSE.md" }
 readme = "README.md"
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.10,<3.15"
 package-mode = false
 
 classifiers = [
@@ -18,6 +18,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "License :: OSI Approved :: MIT License",
     "Intended Audience :: Financial and Insurance Industry",
     "Topic :: Office/Business :: Financial :: Investment",
@@ -45,7 +46,7 @@ pytest-xdist = ">=3.3.1,<5.0.0"
 ruff = ">=0.13.0"
 
 [build-system]
-requires = ["poetry-core>=2.2.0"]
+requires = ["poetry-core>=2.2.1"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.requires-plugins]
