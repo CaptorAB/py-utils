@@ -7,7 +7,7 @@
 # Captor Python utilities
 
 ![Platform](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-blue)
-![Python Versions](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)
+[![Python version](https://img.shields.io/pypi/pyversions/openseries.svg)](https://www.python.org/)
 [![GitHub Action Test Suite](https://github.com/CaptorAB/py-utils/actions/workflows/tests.yml/badge.svg)](https://github.com/CaptorAB/py-utils/actions/workflows/tests.yml)
 [![codecov](https://img.shields.io/codecov/c/gh/CaptorAB/py-utils?logo=codecov)](https://codecov.io/gh/CaptorAB/py-utils/branch/master)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://beta.ruff.rs/docs/)
