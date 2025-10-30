@@ -8,7 +8,7 @@ install:
 	python -m venv ./venv
 	venv/bin/python --version
 	venv/bin/python -m pip install --upgrade pip
-	venv/bin/pip install poetry==2.2.0
+	venv/bin/pip install poetry==2.2.1
 	@. venv/bin/activate && \
 	poetry install --no-root --with dev && \
 	poetry run pre-commit install && \
@@ -19,7 +19,7 @@ update:
 	poetry export --output requirements.txt --without-hashes --all-groups
 
 test:
-	poetry run pytest -n auto --dist loadscope --cov=. --cov-report=term --cov-report=term-missing
+	poetry run pytest
 
 lint:
 	poetry run ruff format

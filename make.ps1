@@ -108,7 +108,7 @@ switch ($task) {
     }
 
     "test" {
-        poetry run pytest -n auto --dist loadscope --cov=. --cov-report=term --cov-report=term-missing
+        poetry run pytest
     }
 
     "lint" {
