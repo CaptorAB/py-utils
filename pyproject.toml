@@ -86,7 +86,7 @@ omit = [
 output = "coverage.xml"
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 line-length = 87
 
 [tool.ruff.lint]
@@ -103,13 +103,10 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = [
   "-n", "auto",
-  "--dist=loadscope",
-  "--cov=openseries",
+  "--dist=worksteal",
+  "--cov=.",
   "--strict-markers",
   "--cov-fail-under=85",
   "--cov-branch",
-  "--cov-report=term",
-  "--cov-report=term-missing",
-  "--cov-report=xml",
-  "--junitxml=junit.xml"
+  "--cov-report=term"
 ]

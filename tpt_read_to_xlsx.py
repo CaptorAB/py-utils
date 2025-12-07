@@ -118,7 +118,7 @@ def download_fund_tpt_report(
             output_dir = directory or Path.cwd()
             output_file = output_dir / f"{data['name']}.xlsx"
             report_data.to_excel(output_file, index=False)
-        except requests.RequestException as e:  # noqa: PERF203
+        except requests.RequestException as e:
             last_error = e
             if attempt == max_retries - 1:
                 raise
