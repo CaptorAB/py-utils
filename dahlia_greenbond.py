@@ -4,6 +4,7 @@ from openseries import (
     OpenFrame,
     OpenTimeSeries,
     get_previous_business_day_before_today,
+    report_html,
 )
 
 from attribution import (
@@ -12,6 +13,7 @@ from attribution import (
     compute_grouped_attribution_with_cumulative,
     get_party_name,
     get_performance,
+    get_timeserie,
 )
 from graphql_client import GraphqlClient
 
@@ -65,5 +67,22 @@ if __name__ == "__main__":
 
     _, _ = attribution_waterfall(
         data=frame,
+        title=fund_name,
         filename=f"{fund_name.replace(' ', '').replace('-', '')}_waterfall",
+    )
+
+    compare_id = "6188589536516e22dcf43f91"
+    compare_name = "Euro Corp Green Bond index"
+    compareserie = get_timeserie(
+        graphql=gql_client, timeseries_id=compare_id, name=compare_name
+    )
+
+    compare = OpenFrame(constituents=[navserie, compareserie])
+    compare.trunc_frame()
+    report_html(
+        data=compare,
+        bar_freq="BYE",
+        title="Captor Dahlia Green Bond",
+        filename=f"{fund_name.replace(' ', '').replace('-', '')}_report.html",
+        auto_open=True,
     )

@@ -113,7 +113,6 @@ def write_token_to_file(jwt_token: str, filename: str) -> None:
         local_token = {"tokens": {database: {"token": jwt_token, "decoded": data}}}
 
     with dot_config_file_name.open(mode="w", encoding="utf-8") as file_handle:
-        # noinspection PyTypeChecker
         json.dump(obj=local_token, fp=file_handle, indent=2, sort_keys=True)
 
     if not dot_config_file_name.exists():

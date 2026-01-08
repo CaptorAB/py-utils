@@ -66,6 +66,7 @@ if __name__ == "__main__":
 
     _, _ = attribution_waterfall(
         data=frame,
+        title=fund_name,
         filename=f"{fund_name.replace(' ', '').replace('-', '')}_waterfall",
     )
 

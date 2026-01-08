@@ -22,14 +22,14 @@ jobs:
 
     steps:
       - name: Check out GitHub repository ${{ github.repository }}
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 1
           ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Set up Python on ${{ runner.os }}
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         id: setup_python
         with:
           python-version-file: '.python-version'
@@ -38,7 +38,7 @@ jobs:
         run: echo "PYTHON_VERSION=$(python --version)" >> $GITHUB_ENV
 
       - name: Manage Poetry cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         id: poetry-cache
         with:
           path: |
@@ -103,7 +103,7 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ github.ref_name == 'master' }}
-        uses: codecov/test-results-action@47f89e9acb64b76debcd5ea40642d25a4adced9f # v1.1.1
+        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: junit.xml
@@ -111,7 +111,7 @@ jobs:
 
       - name: Upload coverage to Codecov.io
         if: ${{ github.ref_name == 'master' }}
-        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: CaptorAB/py-utils

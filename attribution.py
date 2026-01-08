@@ -18,12 +18,30 @@ from inspect import stack
 from pathlib import Path
 from typing import Any, Literal
 
-from openseries import OpenFrame, OpenTimeSeries, load_plotly_dict
+from openseries import (
+    OpenFrame,
+    OpenTimeSeries,
+    export_plotly_figure,
+    load_plotly_dict,
+)
 from pandas import DataFrame, concat
 from plotly.graph_objs import Figure
-from plotly.offline import plot
 
 from graphql_client import GraphqlClient, GraphqlError
+
+# Waterfall plot color configuration
+WATERFALL_COLORS = {
+    "decreasing": "#611A51",  # Dark purple for decreasing bars
+    "increasing": "#66725B",  # Olive green for increasing bars
+    "totals": "#5D6C85",  # Blue-gray for total bars
+}
+
+# Color marker configurations for Plotly waterfall plots
+WATERFALL_MARKERS = {
+    "decreasing": {"marker": {"color": WATERFALL_COLORS["decreasing"]}},
+    "increasing": {"marker": {"color": WATERFALL_COLORS["increasing"]}},
+    "totals": {"marker": {"color": WATERFALL_COLORS["totals"]}},
+}
 
 
 class PortfolioValueZeroError(Exception):
@@ -49,6 +67,85 @@ class FxLegError(Exception):
 
         """
         super().__init__(f"FxSwap {swap_id} has no foreign currency leg")
+
+
+def _apply_logo(
+    figure: Figure,
+    logo: dict[str, str | float],
+) -> str | None:
+    """Apply optional logo to a Plotly Figure.
+
+    Args:
+        figure: Plotly figure to update.
+        logo: Plotly layout image dict.
+
+    Returns:
+        Logo source URL if logo should be displayed, None otherwise.
+    """
+    source = logo.get("source", "")
+    logo_url = str(source) if source else None
+    figure.add_layout_image(
+        {
+            "source": "",
+            "x": 0,
+            "y": 1,
+            "xanchor": "left",
+            "yanchor": "top",
+            "xref": "paper",
+            "yref": "paper",
+            "sizex": 0,
+            "sizey": 0,
+            "opacity": 0,
+        }
+    )
+    figure.update_layout(
+        {
+            "margin": {"t": 20, "b": 60, "l": 60, "r": 60, "pad": 4},
+            "autosize": True,
+        },
+    )
+    return logo_url
+
+
+def plot_html(
+    figure: Figure,
+    plotfile: Path,
+    title: str | None = None,
+    output_type: str = "file",
+    include_plotlyjs: str = "cdn",
+    *,
+    auto_open: bool = False,
+    add_logo: bool = True,
+) -> str:
+    """Export a Plotly figure to HTML format.
+
+    Args:
+        figure: The Plotly Figure object to export.
+        plotfile: Path where the HTML file will be saved.
+        title: Optional title for the HTML page.
+        output_type: Plotly output type, typically "file" or "div".
+        include_plotlyjs: How to include Plotly.js ("cdn", "inline", etc.).
+        auto_open: If True, automatically open the HTML file in a browser.
+        add_logo: If True, add the default logo to the figure.
+
+    Returns:
+        The HTML content or file path as a string.
+    """
+    figdict, logo = load_plotly_dict()
+
+    logo_url = _apply_logo(figure=figure, logo=logo) if add_logo else None
+
+    return export_plotly_figure(
+        figure=figure,
+        fig_config=figdict["config"],
+        output_type=output_type,
+        filename=plotfile.name,
+        include_plotlyjs=include_plotlyjs,
+        auto_open=auto_open,
+        plotfile=plotfile,
+        title=title,
+        logo_url=logo_url,
+    )
 
 
 def get_party_name(graphql: GraphqlClient, party_id: str) -> str:
@@ -335,7 +432,6 @@ def attribution_area(
     series: OpenTimeSeries,
     filename: str,
     title: str | None = None,
-    title_font_size: int = 32,
     tick_fmt: str = ".2%",
     directory: str | Path | None = None,
     output_type: Literal["file", "div"] = "file",
@@ -343,7 +439,7 @@ def attribution_area(
     values_in_legend: bool = True,
     add_logo: bool = True,
     auto_open: bool = True,
-) -> tuple[Figure, Path | None]:
+) -> tuple[Figure, str]:
     """Create and save an area chart of attribution series with Plotly.
 
     Args:
@@ -392,7 +488,7 @@ def attribution_area(
         directory=dirpath,
         filename=f"{filename}.html",
         output_type=output_type,
-        add_logo=add_logo,
+        add_logo=False,
     )
 
     figure.update_traces(
@@ -438,25 +534,15 @@ def attribution_area(
         margin={"b": 100},
     )
 
-    if title is not None:
-        figure.update_layout(
-            title={"text": f"<b>{title}</b>", "font": {"size": title_font_size}}
-        )
-
-    if output_type == "file":
-        figdict, _ = load_plotly_dict()
-        plot(
-            figure_or_data=figure,
-            filename=plotfile,
-            auto_open=auto_open,
-            link_text="",
-            include_plotlyjs="cdn",
-            output_type=output_type,
-            config=figdict["config"],
-        )
-        rtn_file = Path(plotfile)
-    else:
-        rtn_file = None
+    rtn_file = plot_html(
+        figure=figure,
+        plotfile=Path(plotfile),
+        title=title,
+        output_type=output_type,
+        include_plotlyjs="cdn",
+        auto_open=auto_open,
+        add_logo=add_logo,
+    )
 
     return figure, rtn_file
 
@@ -469,7 +555,7 @@ def attribution_waterfall(
     output_type: Literal["file", "div"] = "file",
     *,
     auto_open: bool = True,
-) -> tuple[Figure, Path | None]:
+) -> tuple[Figure, str]:
     """Create and save a waterfall chart of attribution series with Plotly.
 
     Args:
@@ -511,13 +597,12 @@ def attribution_waterfall(
 
     figdict, _ = load_plotly_dict()
     figure = Figure(figdict)
-
     figure.add_waterfall(
         orientation="v",
         measure=["relative"] * (ret_df.shape[0] - 1) + ["total"],
-        decreasing={"marker": {"color": "#D98880"}},
-        increasing={"marker": {"color": "#76D7C4"}},
-        totals={"marker": {"color": "#85C1E9"}},
+        decreasing=WATERFALL_MARKERS["decreasing"],
+        increasing=WATERFALL_MARKERS["increasing"],
+        totals=WATERFALL_MARKERS["totals"],
         x=ret_df.index.tolist(),
         y=ret_df.iloc[:, 0].values,
         textposition="auto",
@@ -532,20 +617,13 @@ def attribution_waterfall(
     figure.update_xaxes(gridcolor="#EEEEEE", automargin=True)
     figure.update_yaxes(tickformat=".2%", gridcolor="#EEEEEE", automargin=True)
 
-    if title is not None:
-        figure.update_layout(title={"text": title, "font": {"size": 32}})
-
-    if output_type == "file":
-        plot(
-            figure_or_data=figure,
-            filename=str(plotfile),
-            auto_open=auto_open,
-            link_text="",
-            include_plotlyjs="cdn",
-            output_type=output_type,
-            config=figdict["config"],
-        )
-    else:
-        plotfile = None
+    plotfile = plot_html(
+        figure=figure,
+        plotfile=plotfile,
+        title=title,
+        output_type=output_type,
+        auto_open=auto_open,
+        add_logo=True,
+    )
 
     return figure, plotfile

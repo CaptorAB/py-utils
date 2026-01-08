@@ -53,7 +53,6 @@ class DummyGraphqlClient:
         self._data = data
         self._error = error
 
-    # noinspection PyUnusedLocal
     def query(self, query_string: str, variables: dict[str, Any]) -> Any:  # noqa: ARG002
         """Simulate a GraphQL query returning (data, error).
 
@@ -103,7 +102,6 @@ class TestAttribution:
         self, graphql_client_success: DummyGraphqlClient
     ) -> None:
         """Test get_party_name returns correct longName on success."""
-        # noinspection PyUnresolvedReferences
         result = am.get_party_name(
             graphql=cast("GraphqlClient", graphql_client_success), party_id="id123"
         )
@@ -382,7 +380,6 @@ class DummyFigure:
         return {"data": self.traces, "layout": self.layout}
 
 
-# noinspection PyUnusedLocal
 def mock_plot(figure_or_data: Any, **kwargs: Any) -> str:  # noqa: ARG001
     """Mock plotly.plot to return a div string."""
     return "<div>Mock Plotly Plot</div>"
@@ -391,7 +388,21 @@ def mock_plot(figure_or_data: Any, **kwargs: Any) -> str:  # noqa: ARG001
 @pytest.fixture
 def mock_plotly(monkeypatch: Any) -> None:
     """Fixture to mock plotly functionality."""
-    monkeypatch.setattr(am, "plot", mock_plot)
+
+    def mock_plot_html(
+        figure: Any,  # noqa: ARG001
+        plotfile: Path,
+        title: str | None = None,  # noqa: ARG001
+        output_type: str = "file",  # noqa: ARG001
+        include_plotlyjs: str = "cdn",  # noqa: ARG001
+        *,
+        auto_open: bool = False,  # noqa: ARG001
+        add_logo: bool = True,  # noqa: ARG001
+    ) -> str:
+        """Mock plot_html to return the plotfile path as string."""
+        return str(plotfile)
+
+    monkeypatch.setattr(am, "plot_html", mock_plot_html)
 
 
 class DummyFrame:
@@ -416,12 +427,10 @@ class DummyFrame:
         """Return a copy of self."""
         return self
 
-    # noinspection PyUnusedLocal
     def merge_series(self, how: str) -> Self:  # noqa: ARG002
         """Merge series with specified method."""
         return self
 
-    # noinspection PyUnusedLocal
     def value_nan_handle(self, method: str) -> Self:  # noqa: ARG002
         """Handle NaN values with specified method."""
         return self
@@ -441,7 +450,6 @@ class DummyFrame:
         """
         self._value_ret_series = value
 
-    # noinspection PyUnusedLocal
     @staticmethod
     def plot_series(
         tick_fmt: str,  # noqa: ARG004
@@ -465,7 +473,6 @@ def test_attribution_area(tmp_path: Path, monkeypatch: Any, mock_plotly: Any) ->
 
     monkeypatch.setattr(am, "concat", lambda dfs, axis: dataframe)  # noqa: ARG005
 
-    # noinspection PyTypeChecker
     fig, path_ret = am.attribution_area(
         data=dummy_frame,
         series=dummy_series,
@@ -494,7 +501,7 @@ def test_attribution_area(tmp_path: Path, monkeypatch: Any, mock_plotly: Any) ->
 
     expected_path = tmp_path / "out.html"
     msg4 = f"attribution_area path wrong: {path_ret}"
-    if path_ret != expected_path:
+    if path_ret != str(expected_path):
         raise AttributionTestError(msg4)
 
 
@@ -523,7 +530,7 @@ def test_attribution_waterfall() -> None:
     if not str(path).endswith(".html"):
         raise AttributionTestError(msg2)
 
-    path.unlink()
+    Path(path).unlink()
 
 
 def test_attribution_waterfall_custom_dir() -> None:
