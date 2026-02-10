@@ -28,11 +28,11 @@ classifiers = [
 ]
 
 dependencies = [
-    "openseries >=2.1.4",
-    "pyjwt >=2.10.1",
-    "werkzeug >=3.1.4",
+    "openseries (>=2.1.6)",
+    "pyjwt (>=2.11.0)",
+    "werkzeug (>=3.1.5)",
     "jupyter >=1.1.1",
-    "ipykernel >=7.1.0",
+    "ipykernel (>=7.2.0)",
 ]
 
 [project.urls]
@@ -43,14 +43,14 @@ pre-commit = ">=4.5.1"
 pytest = ">=9.0.2"
 pytest-cov = ">=7.0.0"
 pytest-xdist = ">=3.8.0"
-ruff = ">=0.14.10"
+ruff = ">=0.15.0"
 
 [build-system]
-requires = ["poetry-core>=2.2.1"]
+requires = ["poetry-core>=2.3.1"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.requires-plugins]
-poetry-plugin-export = ">=1.9"
+poetry-plugin-export = ">=1.10"
 
 [tool.coverage.run]
 branch = true
