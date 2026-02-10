@@ -301,7 +301,7 @@ class GraphqlClient:
             DatabaseChoiceError: If database is not 'prod' or 'test'.
 
         """
-        filename = f".{base_url.split(sep='.')[0]}"
+        filename = f".{base_url.split(maxsplit=1, sep='.')[0]}"
         self.token = browser_get_token(
             database=database,
             base_url=base_url,
