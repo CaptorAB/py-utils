@@ -301,7 +301,7 @@ def compute_grouped_attribution_with_cumulative(
     dict[str, list[dict[str, Any]]],
     dict[str, list[dict[str, Any]]],
     list[dict[str, Any]],
-    list[dict[str, Any]],
+    str | None,
 ]:
     """Compute attribution with cumulative values for specified groups.
 
@@ -314,11 +314,11 @@ def compute_grouped_attribution_with_cumulative(
         consider_fxswap: If True, handle FxSwap instruments specially.
 
     Returns:
-        Tuple of (daily, cumulative, total, other) where:
+        Tuple of (daily, cumulative, total, currency) where:
         - daily: Dictionary mapping group names to daily attribution values
         - cumulative: Dictionary mapping group names to cumulative attribution values
         - total: List of total portfolio returns
-        - other: List of returns not attributed to any group
+        - currency: Base currency from the performance data
 
     Raises:
         UnknownCompoundMethodError: If method is not recognized.
@@ -449,7 +449,6 @@ def attribution_area(
         series: OpenTimeSeries of total portfolio series.
         filename: Base filename (without extension) for the saved plot.
         title: Optional chart title.
-        title_font_size: Font size for the title text.
         tick_fmt: Format string for axis ticks and legend values.
         directory: Directory to write the HTML file. Defaults to ~/Documents.
         output_type: Plotly argument to set output as 'div' image or html 'file'

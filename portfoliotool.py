@@ -48,7 +48,7 @@ def make_fund_basket(positions: dict[str, float], timeout: int = 10) -> OpenFram
                 ),
             )
 
-    if len(set(positions.keys()) - found) != 0:
+    if not found.issuperset(positions):
         msg = (
             "Request for NAV series failed. "
             f"Missing ISINs are: {set(positions.keys()) - found}"

@@ -1,5 +1,7 @@
 """Captor Aster Global High Yield attribution analysis module."""
 
+import datetime as dt
+
 from openseries import (
     OpenFrame,
     OpenTimeSeries,
@@ -23,7 +25,7 @@ if __name__ == "__main__":
     fund_id = "62690582071ef0776524606c"
     fund_name = get_party_name(graphql=gql_client, party_id=fund_id)
 
-    start = None
+    start = dt.date(2025, 12, 30)
     perfdata = get_performance(graphql=gql_client, client_id=fund_id, start_dt=start)
 
     _, cumperf, totserie, baseccy = compute_grouped_attribution_with_cumulative(

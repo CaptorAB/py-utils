@@ -36,7 +36,6 @@ class DatabaseChoiceError(Exception):
                 Defaults to 'Can only handle database prod or test.'.
 
         """
-        self.message = message
         super().__init__(message)
 
 
@@ -51,7 +50,6 @@ class NoInternetError(Exception):
                 Defaults to 'No internet connection.'.
 
         """
-        self.message = message
         super().__init__(message)
 
 
@@ -187,6 +185,7 @@ def token_get_server(
     else:
         raise DatabaseChoiceError
 
+    queue = Queue()
     if check_internet():
         webbrowser.open(
             url=(
@@ -220,7 +219,6 @@ def token_get_server(
             content_type="text/html; charset=UTF-8",
         )
 
-    queue = Queue()
     server = make_server(host="localhost", port=port, app=app)
     thread = threading.Thread(target=server.serve_forever)
     thread.start()
@@ -277,8 +275,8 @@ def browser_get_token(
         token = token_get_server(
             database=database, base_url=base_url, filename=filename
         )
-    except requests.ConnectionError as excc:
-        raise NoInternetError from excc
+    except requests.ConnectionError as exc:
+        raise NoInternetError from exc
 
     return token
 
@@ -371,8 +369,8 @@ class GraphqlClient:
             logger_message = f"Query execution failed. HTTP error occurred: {exc}"
             logger.warning(logger_message)
             return None, str(exc)
-        except requests.ConnectionError as excc:
-            raise NoInternetError from excc
+        except requests.ConnectionError as exc:
+            raise NoInternetError from exc
 
         response_data = response.json()
 
@@ -428,7 +426,7 @@ def get_token(
         )
         logger.warning(logger_message)
         return None
-    except requests.ConnectionError as excc:
-        raise NoInternetError from excc
+    except requests.ConnectionError as exc:
+        raise NoInternetError from exc
     else:
         return result

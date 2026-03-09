@@ -1,5 +1,6 @@
 """Tests for tpt_read_to_xlsx.py module."""
 
+import datetime as dt
 import logging
 import tempfile
 from pathlib import Path
@@ -353,22 +354,31 @@ def test_collate_fund_tpt_reports_processing_error() -> None:
 
 
 def test_main_block_execution() -> None:
-    """Test the main block execution."""
-    with patch("tpt_read_to_xlsx.download_fund_tpt_report") as mock_download:
-        mock_download.return_value = Path("test.xlsx")
+    """Test that main block logic calls collate_fund_tpt_reports with correct args."""
+    rpt_date = dt.date(2026, 2, 27)
+    xlsxpath = (
+        Path.home() / "Documents" / f"allreports_{rpt_date.strftime('%Y%m%d')}.xlsx"
+    )
+    with (
+        tempfile.TemporaryDirectory() as temp_dir,
+        patch("tpt_read_to_xlsx.collate_fund_tpt_reports") as mock_collate,
+    ):
+        mock_collate.return_value = Path(temp_dir) / "allreports.xlsx"
 
-        tpt_read_to_xlsx.__name__ = "__main__"
-
-        xlsxpath = Path.home() / "Documents"
-        _ = tpt_read_to_xlsx.download_fund_tpt_report(
-            report_id="67a5ca93079b64d59bb66ccd",
-            directory=xlsxpath,
+        # Simulate main block: collate_fund_tpt_reports(sheetfile=..., report_date=...)
+        tpt_read_to_xlsx.collate_fund_tpt_reports(
+            sheetfile=xlsxpath, report_date=rpt_date
         )
 
-        mock_download.assert_called_once_with(
-            report_id="67a5ca93079b64d59bb66ccd",
-            directory=Path.home() / "Documents",
-        )
+        mock_collate.assert_called_once()
+        call_kwargs = mock_collate.call_args.kwargs
+        base_msg = "collate_fund_tpt_reports not called with expected arguments"
+        if call_kwargs.get("report_date") != rpt_date:
+            date_err = f"{base_msg}: report_date={call_kwargs.get('report_date')}"
+            raise TptReadTestError(date_err)
+        if call_kwargs.get("sheetfile") != xlsxpath:
+            sheet_err = f"{base_msg}: sheetfile={call_kwargs.get('sheetfile')}"
+            raise TptReadTestError(sheet_err)
 
 
 def test_download_fund_tpt_report_retry() -> None:
@@ -626,23 +636,18 @@ def test_collate_fund_tpt_reports_error_handling() -> None:
 
 
 def test_main_block_execution_error() -> None:
-    """Test main block execution with error."""
-    with patch("tpt_read_to_xlsx.download_fund_tpt_report") as mock_download:
-        mock_download.side_effect = TPTProcessingError("Test error")
+    """Test that TPTProcessingError from collate_fund_tpt_reports propagates."""
+    rpt_date = dt.date(2026, 2, 27)
+    xlsxpath = (
+        Path.home() / "Documents" / f"allreports_{rpt_date.strftime('%Y%m%d')}.xlsx"
+    )
+    with patch("tpt_read_to_xlsx.collate_fund_tpt_reports") as mock_collate:
+        mock_collate.side_effect = TPTProcessingError("Test error")
 
-        tpt_read_to_xlsx.__name__ = "__main__"
-
-        xlsxpath = Path.home() / "Documents"
         with pytest.raises(TPTProcessingError, match="Test error"):
-            _ = tpt_read_to_xlsx.download_fund_tpt_report(
-                report_id="67a5ca93079b64d59bb66ccd",
-                directory=xlsxpath,
+            tpt_read_to_xlsx.collate_fund_tpt_reports(
+                sheetfile=xlsxpath, report_date=rpt_date
             )
-
-        mock_download.assert_called_once_with(
-            report_id="67a5ca93079b64d59bb66ccd",
-            directory=Path.home() / "Documents",
-        )
 
 
 def test_collate_fund_tpt_reports_success_with_mock_responses() -> None:

@@ -60,14 +60,14 @@ def _download_report_list(
     report_date: dt.date,
     timeout: int = 10,
 ) -> list[dict[str, str]]:
-    """Download a single TPT report from the API.
+    """Download the TPT report list from the API for a given date.
 
     Args:
         report_date: The date for the required report list.
         timeout: Optional timeout in seconds for the request.
 
     Returns:
-        A list of dictionaries with meta data for each report.
+        A list of dictionaries with metadata for each report.
 
     """
     url = "https://api.captor.se/public/api/tpts"
@@ -129,9 +129,9 @@ def download_fund_tpt_report(
         else:
             return output_file
 
-    msg = f"Failed to download report after {max_retries} attempts"
     if last_error:
         raise last_error
+    msg = f"Failed to download report after {max_retries} attempts"
     raise TPTDownloadError(msg)
 
 
@@ -163,9 +163,6 @@ def collate_fund_tpt_reports(
     report_dataframes = []
 
     if not report_ids:
-        if not report_date:
-            message = "When report_ids are not given a date must be provided."
-            raise TPTProcessingError(message)
         reports = _download_report_list(report_date=report_date, timeout=timeout)
         if len(reports) == 0:
             message = (
