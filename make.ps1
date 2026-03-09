@@ -15,7 +15,7 @@ param (
 $ErrorActionPreference = 'Stop'
 
 # Pin your Poetry version here:
-[string]$poetryVersion = '2.1.3'
+[string]$poetryVersion = '2.3.2'
 
 # Ensure we run from repo root
 Push-Location (Split-Path -Parent $MyInvocation.MyCommand.Definition)
@@ -24,10 +24,10 @@ Push-Location (Split-Path -Parent $MyInvocation.MyCommand.Definition)
 if (Test-Path ".\.python-version") {
     $pythonVersion = (Get-Content ".\.python-version" -ErrorAction Stop).Trim()
     if (-not $pythonVersion) {
-        Throw ".python-version is empty. Write '3.13' in it."
+        Throw ".python-version is empty. Write '3.14' in it."
     }
 } else {
-    Throw "Required file .python-version not found. Create it with '3.13' as it's only content."
+    Throw "Required file .python-version not found. Create it with '3.14' as it's only content."
 }
 
 function Ensure-PythonPath {

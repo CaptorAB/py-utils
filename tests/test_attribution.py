@@ -3,7 +3,7 @@
 Defines AttributionTestError for signaling test failures.
 Covers get_party_name, get_performance,
 compute_grouped_attribution_with_cumulative, and attribution_area.
-Targets Python 3.13 and follows Ruff standards.
+Targets Python 3.14 and follows Ruff standards.
 """
 
 # ruff: noqa: ANN401

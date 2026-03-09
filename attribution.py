@@ -294,6 +294,7 @@ def compute_grouped_attribution_with_cumulative(
     group_by: str,
     group_values: list[str],
     method: str = "simple",
+    fees_and_costs_label: str = "Other",
     *,
     consider_fxswap: bool = False,
 ) -> tuple[
@@ -309,6 +310,7 @@ def compute_grouped_attribution_with_cumulative(
         group_by: Field to group by (e.g., "modelType", "currency").
         group_values: List of values to group by.
         method: Attribution method ("simple", "logreturn", "carino_menchero").
+        fees_and_costs_label: Label for fees and costs group.
         consider_fxswap: If True, handle FxSwap instruments specially.
 
     Returns:
@@ -332,7 +334,7 @@ def compute_grouped_attribution_with_cumulative(
     n_days = len(dates)
     total_series = [{"date": dates[t], "value": series[t]} for t in range(n_days)]
 
-    groups = [*group_values, "Other"]
+    groups = [*group_values, fees_and_costs_label]
 
     daily_contribs: dict[str, list[float]] = {grp: [0.0] * n_days for grp in groups}
     for t in range(1, n_days):
@@ -356,7 +358,7 @@ def compute_grouped_attribution_with_cumulative(
                 )
                 if not has_foreign_leg:
                     raise FxLegError(perf["instrument"]["_id"])
-            grp = category if category in group_values else "Other"
+            grp = category if category in group_values else fees_and_costs_label
             delta = curr_value - prev_value - flow
             daily_contribs[grp][t] += delta / total_prev_value
 
