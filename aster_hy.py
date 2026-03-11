@@ -1,11 +1,10 @@
 """Captor Aster Global High Yield attribution analysis module."""
 
-import datetime as dt
-
 from openseries import (
     OpenFrame,
     OpenTimeSeries,
     ValueType,
+    report_html,
 )
 from pandas import DataFrame, concat
 
@@ -15,6 +14,7 @@ from attribution import (
     compute_grouped_attribution_with_cumulative,
     get_party_name,
     get_performance,
+    get_timeserie,
 )
 from graphql_client import GraphqlClient
 
@@ -23,9 +23,10 @@ if __name__ == "__main__":
     auto_open = True
 
     fund_id = "62690582071ef0776524606c"
+    bmk_ts_id = "630a6fd5935d4f68b57d45e1"
     fund_name = get_party_name(graphql=gql_client, party_id=fund_id)
 
-    start = dt.date(2025, 12, 30)
+    start = None  # dt.date(2025, 12, 30)
     perfdata = get_performance(graphql=gql_client, client_id=fund_id, start_dt=start)
 
     _, cumperf, totserie, baseccy = compute_grouped_attribution_with_cumulative(
@@ -41,6 +42,21 @@ if __name__ == "__main__":
         dates=[item["date"] for item in totserie],
         values=[item["value"] for item in totserie],
         baseccy=baseccy,
+    )
+    bmk_ts = get_timeserie(
+        graphql=gql_client,
+        timeseries_id=bmk_ts_id,
+        name="Bloomberg Global High Yield hedged SEK",
+    )
+
+    compare = OpenFrame(constituents=[navserie, bmk_ts])
+
+    report_html(
+        data=compare,
+        bar_freq="BQE",
+        title=fund_name,
+        filename=f"{fund_name.replace(' ', '')}_report.html",
+        auto_open=auto_open,
     )
 
     cds = DataFrame()
