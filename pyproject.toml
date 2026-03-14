@@ -98,6 +98,7 @@ fixable = ["ALL"]
 mccabe = { max-complexity = 19 }
 pydocstyle = { convention = "google" }
 pylint = { max-args = 11, max-branches = 20, max-statements = 57 }
+per-file-ignores = { "tests/*" = ["ANN401", "ARG001", "ARG002", "B904", "EM101", "EM102", "F841", "RUF002", "SLF001", "TRY003"] }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

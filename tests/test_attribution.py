@@ -6,8 +6,6 @@ compute_grouped_attribution_with_cumulative, and attribution_area.
 Targets Python 3.14 and follows Ruff standards.
 """
 
-# ruff: noqa: ANN401
-
 import datetime as dt
 import math
 from pathlib import Path
@@ -53,7 +51,7 @@ class DummyGraphqlClient:
         self._data = data
         self._error = error
 
-    def query(self, query_string: str, variables: dict[str, Any]) -> Any:  # noqa: ARG002
+    def query(self, query_string: str, variables: dict[str, Any]) -> Any:
         """Simulate a GraphQL query returning (data, error).
 
         Returns:
@@ -380,7 +378,7 @@ class DummyFigure:
         return {"data": self.traces, "layout": self.layout}
 
 
-def mock_plot(figure_or_data: Any, **kwargs: Any) -> str:  # noqa: ARG001
+def mock_plot(figure_or_data: Any, **kwargs: Any) -> str:
     """Mock plotly.plot to return a div string."""
     return "<div>Mock Plotly Plot</div>"
 
@@ -390,14 +388,14 @@ def mock_plotly(monkeypatch: Any) -> None:
     """Fixture to mock plotly functionality."""
 
     def mock_plot_html(
-        figure: Any,  # noqa: ARG001
+        figure: Any,
         plotfile: Path,
-        title: str | None = None,  # noqa: ARG001
-        output_type: str = "file",  # noqa: ARG001
-        include_plotlyjs: str = "cdn",  # noqa: ARG001
+        title: str | None = None,
+        output_type: str = "file",
+        include_plotlyjs: str = "cdn",
         *,
-        auto_open: bool = False,  # noqa: ARG001
-        add_logo: bool = True,  # noqa: ARG001
+        auto_open: bool = False,
+        add_logo: bool = True,
     ) -> str:
         """Mock plot_html to return the plotfile path as string."""
         return str(plotfile)
@@ -427,11 +425,11 @@ class DummyFrame:
         """Return a copy of self."""
         return self
 
-    def merge_series(self, how: str) -> Self:  # noqa: ARG002
+    def merge_series(self, how: str) -> Self:
         """Merge series with specified method."""
         return self
 
-    def value_nan_handle(self, method: str) -> Self:  # noqa: ARG002
+    def value_nan_handle(self, method: str) -> Self:
         """Handle NaN values with specified method."""
         return self
 
@@ -464,7 +462,7 @@ class DummyFrame:
         return DummyFigure(), directory / filename
 
 
-def test_attribution_area(tmp_path: Path, monkeypatch: Any, mock_plotly: Any) -> None:  # noqa: ARG001
+def test_attribution_area(tmp_path: Path, monkeypatch: Any, mock_plotly: Any) -> None:
     """Test attribution_area returns figure and correct file path."""
     dates = [dt.date(2025, 1, i + 1) for i in range(3)]
     dataframe = pd.DataFrame({0: [1.0, 2.0, 3.0]}, index=pd.DatetimeIndex(dates))

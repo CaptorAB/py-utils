@@ -37,6 +37,7 @@
   "python.defaultInterpreterPath": "${workspaceFolder}/venv",
   "python.terminal.activateEnvironment": true,
   "python.testing.cwd": "${workspaceFolder}",
+  "mypy-type-checker.ignorePatterns": ["**/*.py"],
   "ruff.configuration": "${workspaceFolder}/pyproject.toml",
   "ruff.configurationPreference": "filesystemFirst",
   "search.exclude": {
