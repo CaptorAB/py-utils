@@ -1879,14 +1879,14 @@ et-xmlfile = "*"
 
 [[package]]
 name = "openseries"
-version = "2.1.6"
+version = "2.1.7"
 description = "Tools for analyzing financial timeseries."
 optional = false
 python-versions = "<3.15,>=3.11"
 groups = ["main"]
 files = [
-    {file = "openseries-2.1.6-py3-none-any.whl", hash = "sha256:09c1d1147c65133861d13d52acc1cd3d4a5987067d1b172c949c5e6b23f7c2e5"},
-    {file = "openseries-2.1.6.tar.gz", hash = "sha256:4b06f37819737de8f5d0ddf235f042bb8779c4aeb6995100c0fac83edd919d50"},
+    {file = "openseries-2.1.7-py3-none-any.whl", hash = "sha256:8bcf812cf3b76aa74c97a91278173fb75c0fa65a6f1a95d26011257d29e6810b"},
+    {file = "openseries-2.1.7.tar.gz", hash = "sha256:659f34cc04e8b81c7c20b3c706d5192478de5c964970f60ee568594066654e80"},
 ]
 
 [package.dependencies]
@@ -1901,6 +1901,7 @@ python-dateutil = ">=2.8.2"
 requests = ">=2.20.0"
 scikit-learn = ">=1.4.0"
 scipy = ">=1.14.1"
+tzdata = ">=2025.3"
 
 [[package]]
 name = "overrides"
