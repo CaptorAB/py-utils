@@ -7,6 +7,7 @@ and follows Ruff standards.
 import datetime as dt
 from typing import TYPE_CHECKING, Any, cast
 
+import pytest
 from openseries import OpenTimeSeries
 
 import performance as pm
@@ -283,6 +284,48 @@ def test_model_index_benchmark_physical_account() -> None:
     label_msg = f"Expected S&P 500 in name, got {result.label}"
     if "S&P 500" not in result.label and "S&P 500 Index" not in result.label:
         raise PerformanceTestError(label_msg)
+
+
+def test_model_index_benchmark_physical_fallback_to_model_index() -> None:
+    """Test Physical account falls back to modelIndexBenchmark when no main bmk."""
+    account = {
+        "type": "Physical",
+        "description": "Physical No Main Bmk",
+        "benchmarks": [
+            {
+                "mainBenchmark": False,
+                "comment": "Non-main benchmark",
+                "currency": "USD",
+                "offset": 0.0,
+                "instrument": {
+                    "_id": "inst2",
+                    "longName": "Index 2",
+                    "timeSeries": [
+                        {
+                            "_id": "ts2",
+                            "type": "Price(Close)",
+                            "dates": ["2025-01-01"],
+                            "values": [100.0],
+                        }
+                    ],
+                },
+            },
+        ],
+        "modelIndexBenchmark": {
+            "name": "Physical MIB",
+            "currency": "EUR",
+            "timeSeries": {
+                "items": [
+                    {"date": "2025-01-01", "value": 1.0},
+                    {"date": "2025-01-02", "value": 1.01},
+                ]
+            },
+        },
+    }
+    result = pm._model_index_benchmark_for_account(account)
+    msg = "Expected fallback to modelIndexBenchmark for Physical account"
+    if result.label != "Physical MIB":
+        raise PerformanceTestError(msg)
 
 
 # --- get_accounts ---
@@ -599,4 +642,101 @@ def test_performance_report_graphql_retry() -> None:
     )
     msg = "Expected retry to succeed and produce frame"
     if len(frame.constituents) < 1:
+        raise PerformanceTestError(msg)
+
+
+def test_performance_report_skips_one_account_without_performance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test performance_report skips only accounts without performance."""
+    party_data = {
+        "party": {
+            "firstTradeDate": "2024-01-01",
+            "accounts": [
+                {
+                    "_id": "acc_no_perf",
+                    "name": "NoPerf",
+                    "description": "No Performance",
+                    "type": "Sum",
+                    "benchmarks": [],
+                    "modelIndexBenchmark": {
+                        "name": "MIB1",
+                        "currency": "SEK",
+                        "timeSeries": {
+                            "items": [
+                                {"date": "2025-01-01", "value": 1.0},
+                            ]
+                        },
+                    },
+                },
+                {
+                    "_id": "acc_ok",
+                    "name": "A1",
+                    "description": "Acc 1",
+                    "type": "Sum",
+                    "benchmarks": [],
+                    "modelIndexBenchmark": {
+                        "name": "MIB2",
+                        "currency": "SEK",
+                        "timeSeries": {
+                            "items": [
+                                {"date": "2025-01-01", "value": 1.0},
+                            ]
+                        },
+                    },
+                },
+            ],
+        }
+    }
+
+    def query_side_effect(
+        query_string: str,
+        variables: dict[str, Any] | None = None,
+    ) -> tuple[Any, Any]:
+        if "party" in query_string:
+            return party_data, None
+        perf_data = {
+            "accountPerformance": {
+                "currency": "SEK",
+                "dates": ["2025-01-01"],
+                "values": [100.0],
+                "cashFlows": [0.0],
+            }
+        }
+        return perf_data, None
+
+    client = DummyGraphqlClient(None, None)
+    client.query = query_side_effect  # type: ignore[method-assign]
+
+    def fake_get_account_performance(
+        account_id: str,
+        gql_client: "GraphqlClient",
+        start_dt: dt.date | None = None,
+        end_dt: dt.date | None = None,
+        *,
+        look_through: bool = False,
+    ) -> OpenTimeSeries | None:
+        if account_id == "acc_no_perf":
+            return None
+        return OpenTimeSeries.from_arrays(
+            name="Acc 1",
+            dates=["2025-01-01", "2025-01-02"],
+            values=[1.0, 1.01],
+        )
+
+    monkeypatch.setattr(
+        pm,
+        "get_account_performance",
+        fake_get_account_performance,
+    )
+
+    frame = performance_report(
+        graphql=cast("GraphqlClient", client),
+        client="c1",
+        start_dt=dt.date(2025, 1, 1),
+        end_dt=dt.date(2025, 1, 31),
+    )
+    msg = "Expected only accounts with performance to be included in frame"
+    labels = [c.label for c in frame.constituents]
+    if "No Performance" in labels and "Acc 1" not in labels:
         raise PerformanceTestError(msg)

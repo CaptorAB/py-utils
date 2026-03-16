@@ -9,7 +9,7 @@ from openseries import OpenFrame, OpenTimeSeries, ValueType
 
 from graphql_client import GraphqlClient, GraphqlError
 
-CLIENT = ""
+CLIENT = "61978db8c129c3b1bf92cada"
 EXCLUDED_ACCOUNTS = []
 MONTHS = {
     1: "Jan",
@@ -154,14 +154,18 @@ def _model_index_benchmark_for_account(
                 f"{main_bmk['comment'] or main_bmk['instrument']['longName']} "
                 f"(Index for {account['description']})"
             )
-            return OpenTimeSeries.from_arrays(
-                name=name,
-                baseccy=main_bmk["currency"],
-                timeseries_id=price_ts["_id"],
-                instrument_id=main_bmk["instrument"]["_id"],
-                dates=price_ts["dates"],
-                values=[float(val) for val in price_ts["values"]],
-            ).running_adjustment(adjustment=main_bmk["offset"])
+            return (
+                OpenTimeSeries.from_arrays(
+                    name=name,
+                    baseccy=main_bmk["currency"],
+                    timeseries_id=price_ts["_id"],
+                    instrument_id=main_bmk["instrument"]["_id"],
+                    dates=price_ts["dates"],
+                    values=[float(val) for val in price_ts["values"]],
+                )
+                .running_adjustment(adjustment=main_bmk["offset"])
+                .to_cumret()
+            )
     mib = account["modelIndexBenchmark"]
     return OpenTimeSeries.from_arrays(
         name=mib["name"]
@@ -365,11 +369,11 @@ def performance_report(
             + [account_data["modelIndexBenchmark"]]
         )
         tmp_frame.trunc_frame(start_cut=trunc_start, end_cut=trunc_end)
+        tmp_frame.value_nan_handle().to_cumret()
 
         constituents.extend(tmp_frame.constituents)
 
     frame = OpenFrame(constituents=constituents)
-    frame.to_cumret()
 
     if len(errors) > 0:
         sys.stderr.write(f"Errors: {errors}\n")
@@ -377,7 +381,7 @@ def performance_report(
     return frame
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     graphql = GraphqlClient()
 
     start = None  # dt.date(2024, 12, 30)
@@ -390,6 +394,13 @@ if __name__ == "__main__":
         start_dt=start,
         end_dt=end,
     )
+
+    first = frame.first_idx.strftime("%Y%m%d")
+    last = frame.last_idx.strftime("%Y%m%d")
+    filename_performance = f"performance_{first}_{last}"
+    dirpath = Path(__file__).parent
+
+    frame.to_xlsx(filename=f"{filename_performance}.xlsx", directory=dirpath)
 
     thisyr = frame.last_idx.year
     thismth = frame.last_idx.month
@@ -412,14 +423,6 @@ if __name__ == "__main__":
         retrn.index = retrn.index.droplevel(level=1)
         results = pd.concat([results, retrn], axis="columns")
 
-    first = frame.first_idx.strftime("%Y%m%d")
-    last = frame.last_idx.strftime("%Y%m%d")
-    filename_performance = f"performance_{first}_{last}"
     filename_summary = f"summary_{first}_{last}"
-
-    # frame.plot_series(filename=f"{filename}.html")  # noqa: ERA001
-
-    frame.to_xlsx(filename=f"{filename_performance}.xlsx")
-
-    results_xlsx = Path.home() / "Documents" / f"{filename_summary}.xlsx"
+    results_xlsx = dirpath / f"{filename_summary}.xlsx"
     results.to_excel(excel_writer=results_xlsx, engine="openpyxl")
