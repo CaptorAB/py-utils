@@ -2,6 +2,7 @@
 
 import datetime as dt
 import sys
+from pathlib import Path
 
 import pandas as pd
 from openseries import OpenFrame, OpenTimeSeries, ValueType
@@ -10,6 +11,20 @@ from graphql_client import GraphqlClient, GraphqlError
 
 CLIENT = ""
 EXCLUDED_ACCOUNTS = []
+MONTHS = {
+    1: "Jan",
+    2: "Feb",
+    3: "Mar",
+    4: "Apr",
+    5: "May",
+    6: "Jun",
+    7: "Jul",
+    8: "Aug",
+    9: "Sep",
+    10: "Oct",
+    11: "Nov",
+    12: "Dec",
+}
 
 
 def get_account_performance(
@@ -365,7 +380,7 @@ def performance_report(
 if __name__ == "__main__":
     graphql = GraphqlClient()
 
-    start = dt.date(2025, 12, 30)
+    start = None  # dt.date(2024, 12, 30)
     end = None  # dt.date(2025, 12, 30)
 
     frame = performance_report(
@@ -376,8 +391,35 @@ if __name__ == "__main__":
         end_dt=end,
     )
 
+    thisyr = frame.last_idx.year
+    thismth = frame.last_idx.month
+    results = frame.value_ret_calendar_period(year=thisyr)
+    results.name = f"YTD {thisyr}"
+    results.index = results.index.droplevel(level=1)
+
+    mtd = frame.value_ret_calendar_period(year=thisyr, month=thismth)
+    mtd.name = f"MTD {MONTHS[thismth]} {thisyr}"
+    mtd.index = mtd.index.droplevel(level=1)
+    results = pd.concat([results, mtd], axis="columns")
+
+    for period, label in zip(
+        [12, 36, 60],
+        ["1 year", "3 year", "5 year"],
+        strict=True,
+    ):
+        retrn = frame.geo_ret_func(months_from_last=period)
+        retrn.name = label
+        retrn.index = retrn.index.droplevel(level=1)
+        results = pd.concat([results, retrn], axis="columns")
+
     first = frame.first_idx.strftime("%Y%m%d")
     last = frame.last_idx.strftime("%Y%m%d")
-    filename = f"performance_{first}_{last}"
-    frame.plot_series(filename=f"{filename}.html")
-    frame.to_xlsx(filename=f"{filename}.xlsx")
+    filename_performance = f"performance_{first}_{last}"
+    filename_summary = f"summary_{first}_{last}"
+
+    # frame.plot_series(filename=f"{filename}.html")  # noqa: ERA001
+
+    frame.to_xlsx(filename=f"{filename_performance}.xlsx")
+
+    results_xlsx = Path.home() / "Documents" / f"{filename_summary}.xlsx"
+    results.to_excel(excel_writer=results_xlsx, engine="openpyxl")
