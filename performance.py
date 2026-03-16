@@ -9,7 +9,7 @@ from openseries import OpenFrame, OpenTimeSeries, ValueType
 
 from graphql_client import GraphqlClient, GraphqlError
 
-CLIENT = "61978db8c129c3b1bf92cada"
+CLIENT = ""
 EXCLUDED_ACCOUNTS = []
 MONTHS = {
     1: "Jan",
