@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Check out GitHub repository ${{ github.repository }}
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 1
           ref: ${{ github.sha }}
@@ -113,15 +113,16 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ github.ref_name == 'master' }}
-        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          report-type: test_results
           files: junit.xml
           verbose: true
 
       - name: Upload coverage to Codecov.io
         if: ${{ github.ref_name == 'master' }}
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: CaptorAB/py-utils

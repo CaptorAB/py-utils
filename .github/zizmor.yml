@@ -20,4 +20,3 @@ rules:
         - github/codeql-action/upload-sarif
         - astral-sh/setup-uv
         - codecov/codecov-action
-        - codecov/test-results-action
