@@ -12,7 +12,6 @@ license = "BSD-3-Clause"
 license-files = ["LICENSE.md"]
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
-package-mode = false
 
 classifiers = [
     "Programming Language :: Python :: 3.11",
@@ -32,22 +31,25 @@ dependencies = [
     "pyjwt (>=2.13.0)",
     "werkzeug (>=3.1.8)",
     "jupyter >=1.1.1",
-    "ipykernel (>=7.2.0)",
+    "ipykernel (>=7.3.0)",
 ]
 
 [project.urls]
 repository = "https://github.com/CaptorAB/py-utils"
 
-[tool.poetry.group.dev.dependencies]
-pre-commit = ">=4.6.0"
-pytest = ">=9.0.3"
-pytest-cov = ">=7.1.0"
-pytest-xdist = ">=3.8.0"
-ruff = "0.15.20"
-
 [build-system]
 requires = ["poetry-core>=2.3.2"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = ">=4.6.0"
+pytest = ">=9.1.1"
+pytest-cov = ">=7.1.0"
+pytest-xdist = ">=3.8.0"
+ruff = "0.15.22"
 
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.10"

@@ -15,7 +15,7 @@ param (
 $ErrorActionPreference = 'Stop'
 
 # Pin your Poetry version here:
-[string]$poetryVersion = '2.3.3'
+[string]$poetryVersion = '2.4.1'
 
 # Ensure we run from repo root
 Push-Location (Split-Path -Parent $MyInvocation.MyCommand.Definition)
