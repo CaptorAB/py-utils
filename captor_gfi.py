@@ -33,7 +33,7 @@ if __name__ == "__main__":
         data=perfdata,
         group_by="modelType",
         group_values=["Bond", "CdsIndex", "CdsBasket"],
-        method="simple",
+        method="carino_menchero",
         graphql=gql_client,
     )
 
