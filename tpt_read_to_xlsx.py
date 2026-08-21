@@ -9,6 +9,8 @@ from typing import Any
 import requests
 from pandas import DataFrame, concat
 
+from graphql_client import GraphqlClient, GraphqlError
+
 # Configure module logger
 logger = logging.getLogger(__name__)
 
@@ -26,6 +28,9 @@ PROCESSING_ERROR = "Failed to process report data: {error}"
 REPORT_PROCESSING_ERROR = "Failed to process report {report_id}: {error}"
 COLLATION_ERROR = "Error collating TPT reports: {error}"
 NO_REPORTS_ERROR = "No reports to collate"
+NO_INSTRUMENT_ERROR = "No instrument found for ISIN {isin}"
+NO_SHARECLASS_REPORT_ERROR = "No TPT report found for ISIN {isin} on {date}"
+REPORT_NAME_ISIN_INDEX = 2
 
 
 class TPTDownloadError(Exception):
@@ -78,6 +83,165 @@ def _download_report_list(
         for report in response.json()
         if report["date"] == report_date.strftime("%Y-%m-%d")
     ]
+
+
+def _shareclass_report_name_matches(report_name: str, isincode: str) -> bool:
+    """Check whether a TPT report name belongs to the given ISIN.
+
+    Args:
+        report_name: Report name from the database.
+        isincode: ISIN of the share class.
+
+    Returns:
+        True if the name encodes the given ISIN.
+
+    """
+    parts = report_name.split("_")
+    if len(parts) <= REPORT_NAME_ISIN_INDEX:
+        return False
+    return parts[REPORT_NAME_ISIN_INDEX] == isincode
+
+
+def _execute_graphql_query(
+    graphql: GraphqlClient,
+    query: str,
+    variables: dict[str, Any],
+) -> dict[str, Any]:
+    """Run a GraphQL query and return the data payload.
+
+    Args:
+        graphql: A configured GraphqlClient instance.
+        query: GraphQL query string.
+        variables: Query variables.
+
+    Returns:
+        The data dictionary from the GraphQL response.
+
+    Raises:
+        GraphqlError: If the GraphQL API returns an error.
+        TPTProcessingError: If the response data is not a dictionary.
+
+    """
+    data, error = graphql.query(query_string=query, variables=variables)
+    if error:
+        raise GraphqlError(str(error))
+    if not isinstance(data, dict):
+        raise TPTProcessingError(INVALID_REPORT_FORMAT)
+    return data
+
+
+def get_shareclass_tpt_report(
+    graphql: GraphqlClient,
+    isincode: str,
+    report_date: dt.date,
+    directory: Path | None = None,
+) -> Path:
+    """Fetch a TPT report for a share class from the Captor database.
+
+    Looks up the instrument by ISIN, downloads TPT reports for that issuer
+    and date, and writes the matching share-class report to an Excel file.
+
+    Args:
+        graphql: A configured GraphqlClient instance.
+        isincode: ISIN of the share class.
+        report_date: Date of the TPT report to fetch.
+        directory: Optional directory to save the report. Defaults to cwd.
+
+    Returns:
+        Path to the saved Excel file.
+
+    Raises:
+        GraphqlError: If a GraphQL query fails.
+        TPTDownloadError: If no matching instrument or report is found.
+        TPTProcessingError: If the report data cannot be processed.
+
+    """
+    instruments_query = """
+        query instruments($isinIn: [GraphQLIsin!]) {
+          instruments(filter: {isinIn: $isinIn}) {
+            issuerId
+          }
+        }
+    """
+    data = _execute_graphql_query(
+        graphql=graphql,
+        query=instruments_query,
+        variables={"isinIn": [isincode]},
+    )
+    try:
+        client_id = data["instruments"][0]["issuerId"]
+    except (TypeError, KeyError, IndexError) as exc:
+        msg = NO_INSTRUMENT_ERROR.format(isin=isincode)
+        raise TPTDownloadError(msg) from exc
+    if not client_id:
+        msg = NO_INSTRUMENT_ERROR.format(isin=isincode)
+        raise TPTDownloadError(msg)
+
+    reports_query = """
+        query reports(
+          $clientId: GraphQLObjectId
+          $date: GraphQLDateString
+          $type: String = "TPT"
+          $status: [ReportStatusEnum!] = [Active]
+        ) {
+          reports(
+            clientId: $clientId
+            date: $date
+            type: $type
+            statusIn: $status
+          ) {
+            _id
+            type
+            name
+            status
+            date
+            data
+          }
+        }
+    """
+    data = _execute_graphql_query(
+        graphql=graphql,
+        query=reports_query,
+        variables={
+            "clientId": client_id,
+            "date": report_date.strftime("%Y-%m-%d"),
+        },
+    )
+    reports = data.get("reports")
+    if not isinstance(reports, list):
+        raise TPTProcessingError(INVALID_REPORT_FORMAT)
+
+    output_file = None
+    for report in reports:
+        if not isinstance(report, dict):
+            continue
+        report_name = str(report.get("name", ""))
+        if not _shareclass_report_name_matches(
+            report_name=report_name, isincode=isincode
+        ):
+            continue
+        if "data" not in report:
+            error_msg = INVALID_REPORT_FORMAT_WITH_ID.format(
+                report_id=report.get("_id", report_name)
+            )
+            raise TPTProcessingError(error_msg)
+        try:
+            report_data = make_dataframe(data=report["data"])
+        except Exception as e:
+            error_msg = PROCESSING_ERROR.format(error=str(e))
+            raise TPTProcessingError(error_msg) from e
+
+        output_dir = directory or Path.home() / "Documents"
+        output_file = output_dir / f"{report_name}.xlsx"
+        report_data.to_excel(output_file, index=False)
+
+    if output_file is None:
+        msg = NO_SHARECLASS_REPORT_ERROR.format(
+            isin=isincode, date=report_date.strftime("%Y-%m-%d")
+        )
+        raise TPTDownloadError(msg)
+
+    return output_file
 
 
 def download_fund_tpt_report(
@@ -255,8 +419,11 @@ def make_dataframe(data: list[dict]) -> DataFrame:
 
 
 if __name__ == "__main__":
-    rpt_date = dt.date(2026, 2, 27)
-    xlsxpath = (
-        Path.home() / "Documents" / f"allreports_{rpt_date.strftime('%Y%m%d')}.xlsx"
+    isincode = "SE0020999670"
+    rpt_date = dt.date(2026, 7, 31)
+    gql_client = GraphqlClient()
+    _ = get_shareclass_tpt_report(
+        graphql=gql_client,
+        isincode=isincode,
+        report_date=rpt_date,
     )
-    _ = collate_fund_tpt_reports(sheetfile=xlsxpath, report_date=rpt_date)
