@@ -17,6 +17,11 @@ __all__ = ["GraphqlClient", "GraphqlError", "get_token"]
 
 basicConfig(level=WARNING)
 logger = getLogger(__name__)
+getLogger("werkzeug").setLevel(WARNING)
+
+AUTH_START_MESSAGE = (
+    "Live authorization token not present, starting authorization process"
+)
 
 
 class GraphqlError(Exception):
@@ -253,9 +258,8 @@ def browser_get_token(
     """
     try:
         token = get_token_from_file(database=database, filename=filename)
-    except (FileNotFoundError, DatabaseChoiceError) as exc:
-        logger_message = f"Getting token from file failed: {exc}"
-        logger.warning(logger_message)
+    except (FileNotFoundError, DatabaseChoiceError):
+        logger.info(AUTH_START_MESSAGE)
         token = token_get_server(
             database=database, base_url=base_url, filename=filename
         )
@@ -269,9 +273,8 @@ def browser_get_token(
             timeout=timeout,
         )
         response.raise_for_status()
-    except requests.HTTPError as exc:
-        logger_message = f"Token authorization failed. HTTP error occurred: {exc}"
-        logger.warning(logger_message)
+    except requests.HTTPError:
+        logger.info(AUTH_START_MESSAGE)
         token = token_get_server(
             database=database, base_url=base_url, filename=filename
         )

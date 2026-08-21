@@ -1,6 +1,7 @@
 """Test suite for the graphql_client.py module."""
 
 import json
+import logging
 from pathlib import Path
 from queue import Queue
 from unittest.mock import MagicMock, patch
@@ -206,9 +207,12 @@ def test_browser_get_token_from_file(dummy_token: str) -> None:
             raise GraphqlClientTestError
 
 
-def test_browser_get_token_fallback_success(dummy_token: str) -> None:
+def test_browser_get_token_fallback_success(
+    dummy_token: str, caplog: pytest.LogCaptureFixture
+) -> None:
     """Test fallback to _token_get_server when token file is missing."""
     with (
+        caplog.at_level(logging.INFO, logger="graphql_client"),
         patch("graphql_client.get_token_from_file", side_effect=FileNotFoundError),
         patch("graphql_client.token_get_server", return_value=dummy_token),
         patch(
@@ -221,11 +225,16 @@ def test_browser_get_token_fallback_success(dummy_token: str) -> None:
         )
         if result != dummy_token:
             raise GraphqlClientTestError
+        if graphql_client.AUTH_START_MESSAGE not in caplog.text:
+            raise GraphqlClientTestError
 
 
-def test_browser_get_token_refresh_on_http_error(dummy_token: str) -> None:
+def test_browser_get_token_refresh_on_http_error(
+    dummy_token: str, caplog: pytest.LogCaptureFixture
+) -> None:
     """Test that token is refreshed from server when HTTPError is raised."""
     with (
+        caplog.at_level(logging.INFO, logger="graphql_client"),
         patch("graphql_client.get_token_from_file", return_value=dummy_token),
         patch("requests.get", side_effect=requests.HTTPError("bad token")),
         patch("graphql_client.token_get_server", return_value="new_token"),
@@ -234,6 +243,8 @@ def test_browser_get_token_refresh_on_http_error(dummy_token: str) -> None:
             database="prod", base_url="captor.se", filename=".captor"
         )
         if result != "new_token":
+            raise GraphqlClientTestError
+        if graphql_client.AUTH_START_MESSAGE not in caplog.text:
             raise GraphqlClientTestError
 
 
