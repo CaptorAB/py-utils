@@ -17,6 +17,7 @@ import math
 from inspect import stack
 from pathlib import Path
 from typing import Any, Literal
+from warnings import warn
 
 from openseries import (
     OpenFrame,
@@ -67,6 +68,24 @@ class FxLegError(Exception):
 
         """
         super().__init__(f"FxSwap {swap_id} has no foreign currency leg")
+
+
+class UnknownGroupValueError(Exception):
+    """Raised if a group value is not a valid GraphQL enum member."""
+
+
+class MissingGroupValueWarning(UserWarning):
+    """Warned if a group value has no matching instruments in the performance data."""
+
+
+class ZeroGroupContributionWarning(UserWarning):
+    """Warned if a group value is present but contributes no performance."""
+
+
+GROUP_BY_TO_GRAPHQL_ENUM = {
+    "modelType": "InstrumentModelTypeEnum",
+    "currency": "CurrencyEnum",
+}
 
 
 def _apply_logo(
@@ -289,53 +308,167 @@ def get_performance(
     return data["performance"]
 
 
-def compute_grouped_attribution_with_cumulative(
-    data: dict[str, Any],
-    group_by: str,
-    group_values: list[str],
-    method: str = "simple",
-    fees_and_costs_label: str = "Other",
+def get_graphql_enum_values(
+    graphql: GraphqlClient,
+    type_name: str,
     *,
-    consider_fxswap: bool = False,
-) -> tuple[
-    dict[str, list[dict[str, Any]]],
-    dict[str, list[dict[str, Any]]],
-    list[dict[str, Any]],
-    str | None,
-]:
-    """Compute attribution with cumulative values for specified groups.
+    include_deprecated: bool = False,
+) -> list[str]:
+    """Return GraphQL enum value names via schema introspection.
 
     Args:
-        data: Dictionary containing dates, series, and instrumentPerformances.
+        graphql: A configured GraphqlClient instance.
+        type_name: GraphQL enum type name, e.g. InstrumentModelTypeEnum.
+        include_deprecated: If True, include deprecated enum values.
+
+    Returns:
+        Sorted list of enum value names.
+
+    Raises:
+        GraphqlError: If the GraphQL API returns an error or the type is
+            missing or is not an enum.
+
+    """
+    query = """
+        query enumValues($name: String!, $includeDeprecated: Boolean = false) {
+          __type(name: $name) {
+            enumValues(includeDeprecated: $includeDeprecated) {
+              name
+            }
+          }
+        }
+    """
+    variables = {"name": type_name, "includeDeprecated": include_deprecated}
+    data, error = graphql.query(query_string=query, variables=variables)
+
+    if error:
+        msg = str(error)
+        raise GraphqlError(msg)
+
+    type_info = data.get("__type") if isinstance(data, dict) else None
+    if not type_info or type_info.get("enumValues") is None:
+        msg = f"GraphQL type {type_name!r} was not found or is not an enum"
+        raise GraphqlError(msg)
+
+    return sorted(item["name"] for item in type_info["enumValues"])
+
+
+def _validate_group_values(
+    group_by: str,
+    group_values: list[str],
+    present_values: set[str],
+    graphql: GraphqlClient | None,
+) -> None:
+    """Validate requested group values against schema enums and payload data.
+
+    Args:
         group_by: Field to group by (e.g., "modelType", "currency").
-        group_values: List of values to group by.
-        method: Attribution method ("simple", "logreturn", "carino_menchero").
-        fees_and_costs_label: Label for fees and costs group.
+        group_values: List of values requested by the caller.
+        present_values: Distinct values present in the performance payload.
+        graphql: Optional client used to introspect valid enum members.
+
+    Raises:
+        UnknownGroupValueError: If a requested value is not a valid enum member.
+        GraphqlError: If schema introspection fails.
+
+    """
+    schema_values: set[str] | None = None
+    enum_name = GROUP_BY_TO_GRAPHQL_ENUM.get(group_by)
+    if graphql is not None and enum_name is not None:
+        schema_values = set(
+            get_graphql_enum_values(graphql=graphql, type_name=enum_name)
+        )
+
+    unknown = [
+        value
+        for value in group_values
+        if schema_values is not None and value not in schema_values
+    ]
+    if unknown:
+        unknown_str = ", ".join(repr(value) for value in unknown)
+        valid_str = ", ".join(sorted(schema_values or ()))
+        present_str = ", ".join(sorted(present_values))
+        msg = (
+            f"Unknown {group_by} value(s): {unknown_str}. "
+            f"Valid choices: {valid_str}. "
+            f"Values present in this fund: {present_str}."
+        )
+        raise UnknownGroupValueError(msg)
+
+    present_str = ", ".join(sorted(present_values))
+    for value in group_values:
+        if value in present_values:
+            continue
+        if schema_values is not None:
+            msg = (
+                f"{group_by} value {value!r} is valid but this fund has no "
+                f"instruments of that type in the performance window. "
+                f"Values present: {present_str}."
+            )
+        else:
+            msg = (
+                f"{group_by} value {value!r} does not appear in this fund's "
+                f"performance data. Values present: {present_str}."
+            )
+        warn(msg, MissingGroupValueWarning, stacklevel=3)
+
+
+def _warn_zero_contribution_groups(
+    group_by: str,
+    group_values: list[str],
+    present_values: set[str],
+    daily_contribs: dict[str, list[float]],
+) -> None:
+    """Warn when a present group value contributed no performance.
+
+    Args:
+        group_by: Field to group by (e.g., "modelType", "currency").
+        group_values: List of values requested by the caller.
+        present_values: Distinct values present in the performance payload.
+        daily_contribs: Daily contribution series by group name.
+
+    """
+    for value in group_values:
+        if value not in present_values:
+            continue
+        contribs = daily_contribs[value][1:]
+        if contribs and all(item == 0.0 for item in contribs):
+            msg = (
+                f"{group_by} value {value!r} is present in this fund but "
+                f"contributed no performance in the window."
+            )
+            warn(msg, ZeroGroupContributionWarning, stacklevel=3)
+
+
+def _accumulate_daily_contribs(
+    performances: list[dict[str, Any]],
+    group_by: str,
+    group_values: list[str],
+    groups: list[str],
+    n_days: int,
+    fees_and_costs_label: str,
+    *,
+    consider_fxswap: bool,
+) -> dict[str, list[float]]:
+    """Accumulate daily group contributions from instrument performances.
+
+    Args:
+        performances: Instrument performance rows from the payload.
+        group_by: Field to group by (e.g., "modelType", "currency").
+        group_values: List of values requested by the caller.
+        groups: Group names including the fees and costs label.
+        n_days: Number of dates in the performance window.
+        fees_and_costs_label: Label for unmatched instruments.
         consider_fxswap: If True, handle FxSwap instruments specially.
 
     Returns:
-        Tuple of (daily, cumulative, total, currency) where:
-        - daily: Dictionary mapping group names to daily attribution values
-        - cumulative: Dictionary mapping group names to cumulative attribution values
-        - total: List of total portfolio returns
-        - currency: Base currency from the performance data
+        Daily contribution series by group name.
 
     Raises:
-        UnknownCompoundMethodError: If method is not recognized.
-        CannotCompoundReturnError: If return <= -1 for logreturn method.
         PortfolioValueZeroError: If total portfolio value is zero.
         FxLegError: If FxSwap has no foreign currency leg.
 
     """
-    performances = data.get("instrumentPerformances")
-    currency = data.get("currency")
-    dates = data.get("dates")
-    series = data.get("series")
-    n_days = len(dates)
-    total_series = [{"date": dates[t], "value": series[t]} for t in range(n_days)]
-
-    groups = [*group_values, fees_and_costs_label]
-
     daily_contribs: dict[str, list[float]] = {grp: [0.0] * n_days for grp in groups}
     for t in range(1, n_days):
         total_prev_value = sum(perf["values"][t - 1] for perf in performances)
@@ -361,6 +494,88 @@ def compute_grouped_attribution_with_cumulative(
             grp = category if category in group_values else fees_and_costs_label
             delta = curr_value - prev_value - flow
             daily_contribs[grp][t] += delta / total_prev_value
+    return daily_contribs
+
+
+def compute_grouped_attribution_with_cumulative(
+    data: dict[str, Any],
+    group_by: str,
+    group_values: list[str],
+    method: str = "simple",
+    fees_and_costs_label: str = "Other",
+    *,
+    consider_fxswap: bool = False,
+    graphql: GraphqlClient | None = None,
+) -> tuple[
+    dict[str, list[dict[str, Any]]],
+    dict[str, list[dict[str, Any]]],
+    list[dict[str, Any]],
+    str | None,
+]:
+    """Compute attribution with cumulative values for specified groups.
+
+    Args:
+        data: Dictionary containing dates, series, and instrumentPerformances.
+        group_by: Field to group by (e.g., "modelType", "currency").
+        group_values: List of values to group by.
+        method: Attribution method ("simple", "logreturn", "carino_menchero").
+        fees_and_costs_label: Label for fees and costs group.
+        consider_fxswap: If True, handle FxSwap instruments specially.
+        graphql: Optional client used to distinguish unknown enum values from
+            valid types that this fund does not hold.
+
+    Returns:
+        Tuple of (daily, cumulative, total, currency) where:
+        - daily: Dictionary mapping group names to daily attribution values
+        - cumulative: Dictionary mapping group names to cumulative attribution values
+        - total: List of total portfolio returns
+        - currency: Base currency from the performance data
+
+    Raises:
+        UnknownCompoundMethodError: If method is not recognized.
+        CannotCompoundReturnError: If return <= -1 for logreturn method.
+        PortfolioValueZeroError: If total portfolio value is zero.
+        FxLegError: If FxSwap has no foreign currency leg.
+        UnknownGroupValueError: If a group value is not a valid schema enum member.
+        GraphqlError: If schema introspection fails.
+
+    """
+    performances = data.get("instrumentPerformances")
+    currency = data.get("currency")
+    dates = data.get("dates")
+    series = data.get("series")
+    n_days = len(dates)
+    total_series = [{"date": dates[t], "value": series[t]} for t in range(n_days)]
+
+    present_values = {
+        category
+        for perf in performances
+        if (category := perf["instrument"].get(group_by)) is not None
+    }
+    _validate_group_values(
+        group_by=group_by,
+        group_values=group_values,
+        present_values=present_values,
+        graphql=graphql,
+    )
+
+    groups = [*group_values, fees_and_costs_label]
+    daily_contribs = _accumulate_daily_contribs(
+        performances=performances,
+        group_by=group_by,
+        group_values=group_values,
+        groups=groups,
+        n_days=n_days,
+        fees_and_costs_label=fees_and_costs_label,
+        consider_fxswap=consider_fxswap,
+    )
+
+    _warn_zero_contribution_groups(
+        group_by=group_by,
+        group_values=group_values,
+        present_values=present_values,
+        daily_contribs=daily_contribs,
+    )
 
     cumulative_contribs: dict[str, list[float]] = {
         grp: [0.0] * n_days for grp in groups

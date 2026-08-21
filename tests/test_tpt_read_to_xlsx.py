@@ -807,6 +807,7 @@ def test_get_shareclass_tpt_report_default_directory() -> None:
             graphql=mock_graphql,
             isincode=SHARECLASS_ISIN,
             report_date=SHARECLASS_DATE,
+            directory=Path.cwd(),
         )
 
         expected = Path(temp_dir) / f"{SHARECLASS_REPORT_NAME}.xlsx"

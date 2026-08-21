@@ -35,6 +35,7 @@ if __name__ == "__main__":
         group_values=["CdsIndex", "Bond", "CdsBasket", "Balance"],
         method="carino_menchero",
         fees_and_costs_label="Fees & costs",
+        graphql=gql_client,
     )
 
     navserie = OpenTimeSeries.from_arrays(

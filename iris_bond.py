@@ -34,6 +34,7 @@ if __name__ == "__main__":
         group_by="modelType",
         group_values=["Bond", "Swap"],
         method="simple",
+        graphql=gql_client,
     )
 
     navserie = OpenTimeSeries.from_arrays(

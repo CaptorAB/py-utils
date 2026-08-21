@@ -8,6 +8,7 @@ Targets Python 3.14 and follows Ruff standards.
 
 import datetime as dt
 import math
+import warnings
 from pathlib import Path
 from shutil import rmtree as shutil_rmtree
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -28,8 +29,11 @@ import pytest
 import attribution as am
 from attribution import (
     CannotCompoundReturnError,
+    MissingGroupValueWarning,
     PortfolioValueZeroError,
     UnknownCompoundMethodError,
+    UnknownGroupValueError,
+    ZeroGroupContributionWarning,
 )
 
 
@@ -314,6 +318,244 @@ class TestAttribution:
 
         msg = "FxLegError was not raised for FxSwap with no foreign currency leg"
         if not raised:
+            raise AttributionTestError(msg)
+
+    def test_get_graphql_enum_values_success(self) -> None:
+        """Test get_graphql_enum_values returns sorted enum names."""
+        payload = {
+            "__type": {
+                "enumValues": [{"name": "Swap"}, {"name": "Bond"}],
+            }
+        }
+        client = DummyGraphqlClient(payload, None)
+        result = am.get_graphql_enum_values(
+            graphql=cast("GraphqlClient", client),
+            type_name="InstrumentModelTypeEnum",
+            include_deprecated=True,
+        )
+        expected = ["Bond", "Swap"]
+        msg = f"Expected {expected}, got {result}"
+        if result != expected:
+            raise AttributionTestError(msg)
+
+    def test_get_graphql_enum_values_error(self) -> None:
+        """Test get_graphql_enum_values raises GraphqlError on API error."""
+        client = DummyGraphqlClient(None, "fetch failed")
+        raised = False
+        try:
+            am.get_graphql_enum_values(
+                graphql=cast("GraphqlClient", client),
+                type_name="InstrumentModelTypeEnum",
+            )
+        except am.GraphqlError:
+            raised = True
+        msg = "GraphqlError was not raised on enum introspection error"
+        if not raised:
+            raise AttributionTestError(msg)
+
+    def test_get_graphql_enum_values_type_missing(self) -> None:
+        """Test get_graphql_enum_values raises when the type is missing."""
+        client = DummyGraphqlClient({"__type": None}, None)
+        raised = False
+        try:
+            am.get_graphql_enum_values(
+                graphql=cast("GraphqlClient", client),
+                type_name="NotAnEnum",
+            )
+        except am.GraphqlError:
+            raised = True
+        msg = "GraphqlError was not raised for a missing GraphQL type"
+        if not raised:
+            raise AttributionTestError(msg)
+
+    def test_get_graphql_enum_values_not_enum(self) -> None:
+        """Test get_graphql_enum_values raises when enumValues is missing."""
+        client = DummyGraphqlClient({"__type": {"enumValues": None}}, None)
+        raised = False
+        try:
+            am.get_graphql_enum_values(
+                graphql=cast("GraphqlClient", client),
+                type_name="Instrument",
+            )
+        except am.GraphqlError:
+            raised = True
+        msg = "GraphqlError was not raised when the type is not an enum"
+        if not raised:
+            raise AttributionTestError(msg)
+
+    def test_get_graphql_enum_values_non_dict_data(self) -> None:
+        """Test get_graphql_enum_values raises when data is not a dict."""
+        client = DummyGraphqlClient(["not", "a", "dict"], None)
+        raised = False
+        try:
+            am.get_graphql_enum_values(
+                graphql=cast("GraphqlClient", client),
+                type_name="InstrumentModelTypeEnum",
+            )
+        except am.GraphqlError:
+            raised = True
+        msg = "GraphqlError was not raised for a non-dict introspection payload"
+        if not raised:
+            raise AttributionTestError(msg)
+
+    def test_unknown_group_value_raises(self, sample_data: dict[str, Any]) -> None:
+        """Test an unknown schema enum value raises UnknownGroupValueError."""
+        client = DummyGraphqlClient(
+            {"__type": {"enumValues": [{"name": "G1"}, {"name": "G2"}]}},
+            None,
+        )
+        raised = False
+        message = ""
+        try:
+            am.compute_grouped_attribution_with_cumulative(
+                data=sample_data,
+                group_by="modelType",
+                group_values=["Bnd"],
+                graphql=cast("GraphqlClient", client),
+            )
+        except UnknownGroupValueError as exc:
+            raised = True
+            message = str(exc)
+        msg = "UnknownGroupValueError was not raised for an unknown modelType"
+        if not raised:
+            raise AttributionTestError(msg)
+        if "Bnd" not in message or "G1" not in message:
+            msg2 = f"Error message missing choices or unknown value: {message}"
+            raise AttributionTestError(msg2)
+
+    def test_valid_group_value_missing_from_fund(
+        self, sample_data: dict[str, Any]
+    ) -> None:
+        """Test a valid unused enum value warns and keeps a zero series."""
+        client = DummyGraphqlClient(
+            {
+                "__type": {
+                    "enumValues": [
+                        {"name": "G1"},
+                        {"name": "G2"},
+                        {"name": "G3"},
+                    ]
+                }
+            },
+            None,
+        )
+        with pytest.warns(MissingGroupValueWarning, match="G3"):
+            daily, _, _, _ = am.compute_grouped_attribution_with_cumulative(
+                data=sample_data,
+                group_by="modelType",
+                group_values=["G1", "G3"],
+                graphql=cast("GraphqlClient", client),
+            )
+        expected_zero = 0.0
+        rec_zero = daily["G3"][1]["value"]
+        msg = f"Expected unused G3 series to be {expected_zero}, got {rec_zero}"
+        if not math.isclose(rec_zero, expected_zero, rel_tol=1e-9):
+            raise AttributionTestError(msg)
+
+    def test_missing_group_value_without_graphql(
+        self, sample_data: dict[str, Any]
+    ) -> None:
+        """Test a missing value warns with present types when schema is unknown."""
+        with pytest.warns(MissingGroupValueWarning, match="does not appear"):
+            am.compute_grouped_attribution_with_cumulative(
+                data=sample_data,
+                group_by="modelType",
+                group_values=["G1", "G3"],
+            )
+
+    def test_zero_contribution_warns(self, sample_data: dict[str, Any]) -> None:
+        """Test a present group with no P&L emits ZeroGroupContributionWarning."""
+        zero_pnl = {
+            "values": [100.0, 100.0],
+            "cashFlows": [0.0, 0.0],
+            "instrument": {"modelType": "G1", "currency": "EUR"},
+        }
+        data_zero = {**sample_data, "instrumentPerformances": [zero_pnl]}
+        with pytest.warns(ZeroGroupContributionWarning, match="G1"):
+            am.compute_grouped_attribution_with_cumulative(
+                data=data_zero,
+                group_by="modelType",
+                group_values=["G1"],
+            )
+
+    def test_unmapped_group_by_with_graphql(self, sample_data: dict[str, Any]) -> None:
+        """Test graphql is ignored when group_by has no schema enum mapping."""
+        client = DummyGraphqlClient(
+            {"__type": {"enumValues": [{"name": "unused"}]}},
+            None,
+        )
+        data = {
+            **sample_data,
+            "instrumentPerformances": [
+                {
+                    "values": [100.0, 120.0],
+                    "cashFlows": [0.0, 0.0],
+                    "instrument": {
+                        "modelType": "G1",
+                        "currency": "EUR",
+                        "name": "A",
+                    },
+                }
+            ],
+        }
+        with pytest.warns(MissingGroupValueWarning, match="does not appear"):
+            am.compute_grouped_attribution_with_cumulative(
+                data=data,
+                group_by="name",
+                group_values=["B"],
+                graphql=cast("GraphqlClient", client),
+            )
+
+    def test_currency_group_with_graphql(self, sample_data: dict[str, Any]) -> None:
+        """Test currency grouping uses CurrencyEnum introspection."""
+        client = DummyGraphqlClient(
+            {
+                "__type": {
+                    "enumValues": [
+                        {"name": "EUR"},
+                        {"name": "USD"},
+                        {"name": "SEK"},
+                    ]
+                }
+            },
+            None,
+        )
+        with pytest.warns(MissingGroupValueWarning, match="SEK"):
+            am.compute_grouped_attribution_with_cumulative(
+                data=sample_data,
+                group_by="currency",
+                group_values=["EUR", "SEK"],
+                graphql=cast("GraphqlClient", client),
+            )
+
+    def test_single_day_skips_zero_contribution_warning(
+        self, sample_data: dict[str, Any]
+    ) -> None:
+        """Test a single-date series does not emit a zero-contribution warning."""
+        data = {
+            **sample_data,
+            "dates": ["d1"],
+            "series": [0.0],
+            "instrumentPerformances": [
+                {
+                    "values": [100.0],
+                    "cashFlows": [0.0],
+                    "instrument": {"modelType": "G1", "currency": "EUR"},
+                }
+            ],
+        }
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            am.compute_grouped_attribution_with_cumulative(
+                data=data,
+                group_by="modelType",
+                group_values=["G1"],
+            )
+        zero_warned = any(
+            issubclass(item.category, ZeroGroupContributionWarning) for item in caught
+        )
+        msg = "ZeroGroupContributionWarning was emitted for a single-date series"
+        if zero_warned:
             raise AttributionTestError(msg)
 
 

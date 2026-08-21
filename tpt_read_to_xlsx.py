@@ -145,7 +145,7 @@ def get_shareclass_tpt_report(
         graphql: A configured GraphqlClient instance.
         isincode: ISIN of the share class.
         report_date: Date of the TPT report to fetch.
-        directory: Optional directory to save the report. Defaults to cwd.
+        directory: Optional directory to save the report. Defaults to ~/Documents.
 
     Returns:
         Path to the saved Excel file.

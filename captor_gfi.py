@@ -1,4 +1,4 @@
-"""Captor Dahlia Green Bond attribution analysis module."""
+"""Captor Global Fixed Income attribution analysis module."""
 
 from openseries import (
     OpenFrame,
@@ -20,7 +20,7 @@ from graphql_client import GraphqlClient
 if __name__ == "__main__":
     gql_client = GraphqlClient()
 
-    fund_id = "5b0d638cafcedd32f03a8ac7"
+    fund_id = "649d36255de897ec4079bbae"
     fund_name = get_party_name(graphql=gql_client, party_id=fund_id)
 
     start = None
@@ -31,10 +31,9 @@ if __name__ == "__main__":
 
     _, cumperf, totserie, baseccy = compute_grouped_attribution_with_cumulative(
         data=perfdata,
-        group_by="currency",
-        group_values=["SEK", "EUR", "NOK"],
-        method="logreturn",
-        consider_fxswap=True,
+        group_by="modelType",
+        group_values=["Bond", "CdsIndex", "CdsBasket"],
+        method="simple",
         graphql=gql_client,
     )
 
@@ -72,8 +71,8 @@ if __name__ == "__main__":
         filename=f"{fund_name.replace(' ', '').replace('-', '')}_waterfall",
     )
 
-    compare_id = "6188589536516e22dcf43f91"
-    compare_name = "Euro Corp Green Bond index"
+    compare_id = "658d5593d5913159f8909a60"
+    compare_name = "Portfolio of Global IG 70 and HY 30 indices hedged SEK"
     compareserie = get_timeserie(
         graphql=gql_client, timeseries_id=compare_id, name=compare_name
     )
@@ -82,8 +81,8 @@ if __name__ == "__main__":
     compare.trunc_frame()
     report_html(
         data=compare,
-        bar_freq="BYE",
-        title="Captor Dahlia Green Bond",
+        bar_freq="BQE",
+        title=f"{fund_name}",
         filename=f"{fund_name.replace(' ', '').replace('-', '')}_report.html",
         auto_open=True,
     )
