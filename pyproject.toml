@@ -38,18 +38,18 @@ dependencies = [
 repository = "https://github.com/CaptorAB/py-utils"
 
 [build-system]
-requires = ["poetry-core>=2.3.2"]
+requires = ["poetry-core>=2.4.1"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 package-mode = false
 
 [tool.poetry.group.dev.dependencies]
-pre-commit = ">=4.6.0"
+pre-commit = ">=4.6.2"
 pytest = ">=9.1.1"
 pytest-cov = ">=7.1.0"
 pytest-xdist = ">=3.8.0"
-ruff = "0.16.1"
+ruff = "0.16.4"
 
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.10"
@@ -95,7 +95,7 @@ line-length = 87
 [tool.ruff.lint]
 select = ["ALL"]
 allowed-confusables = ["−"]
-ignore = ["COM812", "N999"]
+ignore = ["COM812", "CPY001", "N999"]
 fixable = ["ALL"]
 mccabe = { max-complexity = 19 }
 pydocstyle = { convention = "google" }

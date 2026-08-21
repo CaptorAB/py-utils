@@ -1,36 +1,24 @@
 <#
 .SYNOPSIS
-    Admin script for setting up, activating, and cleaning your project venv with Poetry.
+    Windows counterpart of Makefile (and of source_me for 'active').
 
 .PARAMETER task
-    What to do: 'active', 'make', 'update', 'test', 'lint' or 'clean'.
-    Defaults to 'active'.
+    What to do: 'all', 'install', 'update', 'test', 'lint', 'clean', or 'active'.
+    'make' is accepted as an alias of 'install'.
+    Defaults to 'active' (the Windows equivalent of 'source source_me').
 #>
 
 param (
-    [ValidateSet("active","make","update","test","lint","clean")]
+    [ValidateSet("active", "all", "install", "make", "update", "test", "lint", "clean")]
     [string]$task = "active"
 )
 
 $ErrorActionPreference = 'Stop'
 
-# Pin your Poetry version here:
+# Pin Poetry to the same version as Makefile.
 [string]$poetryVersion = '2.4.1'
 
-# Ensure we run from repo root
-Push-Location (Split-Path -Parent $MyInvocation.MyCommand.Definition)
-
-# --- read exact Python version from .python-version ---
-if (Test-Path ".\.python-version") {
-    $pythonVersion = (Get-Content ".\.python-version" -ErrorAction Stop).Trim()
-    if (-not $pythonVersion) {
-        Throw ".python-version is empty. Write '3.14' in it."
-    }
-} else {
-    Throw "Required file .python-version not found. Create it with '3.14' as it's only content."
-}
-
-function Ensure-PythonPath {
+function Set-ProjectPythonPath {
     if ($env:PYTHONPATH) {
         if (-not ($env:PYTHONPATH -match [regex]::Escape($PWD))) {
             $env:PYTHONPATH = "$PWD;$env:PYTHONPATH"
@@ -39,106 +27,84 @@ function Ensure-PythonPath {
             Write-Output "`nPYTHONPATH already includes project root."
         }
     } else {
-        $env:PYTHONPATH = $PWD
+        $env:PYTHONPATH = "$PWD"
         Write-Output "`nPYTHONPATH set to: $env:PYTHONPATH"
     }
 }
 
-switch ($task) {
-    "active" {
-        . .\venv\Scripts\Activate.ps1
-        Ensure-PythonPath
-        Write-Output "`nUsing Python in venv '$(Split-Path $env:VIRTUAL_ENV -Leaf)':"
-        python --version
+function Enter-ProjectVenv {
+    $activate = Join-Path $PWD 'venv\Scripts\Activate.ps1'
+    if (-not (Test-Path $activate)) {
+        Throw "Virtual environment not found at .\venv. Run '.\make.ps1 install' first."
     }
+    . $activate
+    Set-ProjectPythonPath
+    Write-Output "`nThe Python used in the '$(Split-Path $env:VIRTUAL_ENV -Leaf)' environment is:"
+    python --version
+}
 
-    "update" {
-        . .\venv\Scripts\Activate.ps1
-        Ensure-PythonPath
-        Write-Output "`nUsing Python in venv '$(Split-Path $env:VIRTUAL_ENV -Leaf)':"
-        python --version
-        poetry update --with dev
-        poetry export --output requirements.txt --without-hashes --all-groups
-    }
+Push-Location (Split-Path -Parent $MyInvocation.MyCommand.Definition)
 
-    "make" {
-        # remove any existing venv
-        if (Test-Path .\venv) { Remove-Item .\venv -Recurse -Force }
+try {
+    switch ($task) {
+        "active" {
+            Enter-ProjectVenv
+        }
 
-        # if pyenv exists, pin it; otherwise verify system Python
-        if (Test-Path "$env:USERPROFILE\.pyenv") {
-            pyenv global  $pythonVersion
-            Write-Output "Set pyenv global to Python $pythonVersion."
-        } else {
-            $sysVer = (& python --version 2>&1) -replace 'Python ', ''
-            if ($sysVer -eq $pythonVersion) {
-                Write-Output "System Python $sysVer matches required $pythonVersion."
-            } else {
-                Write-Warning "System Python is $sysVer; expected $pythonVersion. Please install or use pyenv-win."
+        { $_ -in "all", "install", "make" } {
+            python -m venv .\venv
+            $venvPython = Join-Path $PWD 'venv\Scripts\python.exe'
+            & $venvPython --version
+            & $venvPython -m pip install --upgrade pip
+            & $venvPython -m pip install "poetry==$poetryVersion"
+
+            Enter-ProjectVenv
+            poetry install --no-root --with dev
+            poetry run pre-commit install
+            poetry export --output requirements.txt --without-hashes --all-groups
+        }
+
+        "update" {
+            Enter-ProjectVenv
+            poetry update --with dev
+            poetry export --output requirements.txt --without-hashes --all-groups
+        }
+
+        "test" {
+            Enter-ProjectVenv
+            poetry run pytest
+        }
+
+        "lint" {
+            Enter-ProjectVenv
+            poetry run ruff format
+            poetry run ruff check . --fix --exit-non-zero-on-fix
+        }
+
+        "clean" {
+            if (Test-Path .\venv\Scripts\Activate.ps1) {
+                . .\venv\Scripts\Activate.ps1
+                pre-commit uninstall
+            }
+            if ($env:VIRTUAL_ENV) {
+                & "$env:VIRTUAL_ENV\Scripts\deactivate.bat" 2>$null
+            }
+            if (Test-Path .\venv) {
+                Remove-Item .\venv -Recurse -Force
+            }
+            if (Test-Path 'poetry.lock') {
+                Remove-Item 'poetry.lock' -Force
+            }
+            if (Test-Path 'requirements.txt') {
+                Remove-Item 'requirements.txt' -Force
             }
         }
 
-        # create & activate venv
-        python -m venv .\venv
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "✅ Virtual environment created." -ForegroundColor Green
-        } else {
-            Write-Host "❌ Failed to create virtual environment." -ForegroundColor Red
+        default {
+            Write-Error "Invalid task '$task'. Use all, install, update, test, lint, clean, or active."
             exit 1
         }
-        . .\venv\Scripts\Activate.ps1
-
-        Ensure-PythonPath
-        Write-Output "`nUsing Python in venv '$(Split-Path $env:VIRTUAL_ENV -Leaf)':"
-        python --version
-
-        # install tooling & deps
-        python -m pip install --upgrade pip
-        python -m pip install "poetry==$poetryVersion"
-        if (Test-Path 'poetry.lock') {
-            Remove-Item 'poetry.lock' -Force -ErrorAction SilentlyContinue
-        }
-        if (Test-Path 'requirements.txt') {
-            Remove-Item 'requirements.txt' -Force -ErrorAction SilentlyContinue
-        }
-        poetry config warnings.export false
-        poetry install --no-root --with dev
-        poetry run pre-commit install
-        poetry export --output requirements.txt --without-hashes --all-groups
     }
-
-    "test" {
-        poetry run pytest
-    }
-
-    "lint" {
-        poetry run ruff format
-        poetry run ruff check . --fix --exit-non-zero-on-fix
-    }
-
-    "clean" {
-        # deactivate any active virtual environment (silently if none)
-        if ($env:VIRTUAL_ENV) {
-            & "$env:VIRTUAL_ENV\Scripts\deactivate.bat" 2>$null
-        }
-        # uninstall hooks, tear down venv & lockfile
-        poetry run pre-commit uninstall
-        if (Test-Path .\venv) {
-            Remove-Item .\venv -Recurse -Force
-        }
-        if (Test-Path 'poetry.lock') {
-            Remove-Item 'poetry.lock' -Force -ErrorAction SilentlyContinue
-        }
-        if (Test-Path 'requirements.txt') {
-            Remove-Item 'requirements.txt' -Force -ErrorAction SilentlyContinue
-        }
-        Write-Output "🧹 Clean complete."
-    }
-
-    default {
-        Write-Error "Invalid task '$task'. Use active, make, update, or clean."
-        exit 1
-    }
+} finally {
+    Pop-Location
 }
-
-Pop-Location

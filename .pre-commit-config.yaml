@@ -3,8 +3,10 @@ default_language_version:
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.1
+    rev: v0.16.4
     hooks:
+      - id: ruff-check
+        args: [ --fix ]
       - id: ruff-format
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0
@@ -31,8 +33,8 @@ repos:
         args: [ --fix=auto ]
       - id: fix-byte-order-marker
         exclude: .gitignore
-  - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: v1.28.0
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.29.0
     hooks:
       - id: zizmor
   - repo: https://github.com/python-poetry/poetry
