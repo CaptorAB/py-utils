@@ -28,6 +28,7 @@ classifiers = [
 
 dependencies = [
     "openseries (>=2.1.9)",
+    "plotly (>=5.18.0,<7)",
     "pyjwt (>=2.13.0)",
     "werkzeug (>=3.1.8)",
     "jupyter >=1.1.1",
