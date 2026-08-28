@@ -28,7 +28,7 @@ classifiers = [
 
 dependencies = [
     "openseries (>=2.1.9)",
-    "plotly (>=5.18.0,<7)",
+    "plotly (>=5.18.0)",
     "pyjwt (>=2.13.0)",
     "werkzeug (>=3.1.8)",
     "jupyter >=1.1.1",
@@ -50,7 +50,7 @@ pre-commit = ">=4.6.2"
 pytest = ">=9.1.1"
 pytest-cov = ">=7.1.0"
 pytest-xdist = ">=3.8.0"
-ruff = "0.16.4"
+ruff = "0.16.5"
 
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.10"
