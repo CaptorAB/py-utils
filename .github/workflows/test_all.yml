@@ -60,7 +60,7 @@ jobs:
           python -m venv venv
           source venv/Scripts/activate
           python.exe -m pip install --upgrade pip wheel
-          pip install poetry==2.4.1
+          pip install poetry==2.4.3
 
       - name: Install dependencies with Poetry
         run: |
@@ -153,7 +153,7 @@ jobs:
           source venv/bin/activate
           python --version
           pip install --upgrade pip wheel
-          pip install poetry==2.4.1
+          pip install poetry==2.4.3
 
       - name: Install dependencies with Poetry
         run: |
@@ -246,7 +246,7 @@ jobs:
           source venv/bin/activate
           python --version
           pip install --upgrade pip wheel
-          pip install poetry==2.4.1
+          pip install poetry==2.4.3
 
       - name: Install dependencies with Poetry
         run: |

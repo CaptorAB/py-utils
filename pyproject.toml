@@ -50,7 +50,7 @@ pre-commit = ">=4.6.2"
 pytest = ">=9.1.1"
 pytest-cov = ">=7.1.0"
 pytest-xdist = ">=3.8.0"
-ruff = "0.16.5"
+ruff = "0.16.7"
 
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.10"
@@ -61,8 +61,10 @@ omit = [
     "venv/*",
     "tests/*",
     "**/__init__.py",
+    "./aster_hy.py",
     "./aster_long.py",
     "./aster_short.py",
+    "./captor_gfi.py",
     "./dahlia_greenbond.py",
     "./iris_bond.py",
     "./portfoliosimulation.py",
@@ -79,6 +81,7 @@ omit = [
     "./aster_hy.py",
     "./aster_long.py",
     "./aster_short.py",
+    "./captor_gfi.py",
     "./dahlia_greenbond.py",
     "./iris_bond.py",
     "./portfoliosimulation.py",

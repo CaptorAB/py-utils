@@ -10,6 +10,7 @@ from openseries import (
 from attribution import (
     attribution_area,
     attribution_waterfall,
+    bar_freq_for_period,
     compute_grouped_attribution_with_cumulative,
     get_party_name,
     get_performance,
@@ -82,7 +83,9 @@ if __name__ == "__main__":
     compare.trunc_frame()
     report_html(
         data=compare,
-        bar_freq="BYE",
+        bar_freq=bar_freq_for_period(
+            start_idx=compare.first_idx, end_idx=compare.last_idx
+        ),
         title="Captor Dahlia Green Bond",
         filename=f"{fund_name.replace(' ', '').replace('-', '')}_report.html",
         auto_open=True,

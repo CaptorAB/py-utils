@@ -4,8 +4,8 @@ Provides functionality for:
   a) Fetching performance data from a GraphQL API
   b) Computing daily and cumulative group level return attributions
      with simple, logreturn, or Carino/Menchero linking methods
-  c) Rendering an interactive area chart of attributions and total
-     portfolio returns using OpenSeries and Plotly
+  c) Rendering interactive area, waterfall, and diversification charts
+     of attributions and total portfolio returns using OpenSeries and Plotly
 
 This module defines Pydantic models for validation, helper functions
 to query and validate data, and the `compute_grouped_attribution_with_cumulative`
@@ -16,7 +16,7 @@ import datetime as dt
 import math
 from inspect import stack
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from warnings import warn
 
 from openseries import (
@@ -25,8 +25,9 @@ from openseries import (
     export_plotly_figure,
     load_plotly_dict,
 )
-from pandas import DataFrame, concat
+from pandas import DataFrame, Series, Timestamp, concat
 from plotly.graph_objs import Figure
+from plotly.subplots import make_subplots
 
 from graphql_client import GraphqlClient, GraphqlError
 
@@ -43,6 +44,45 @@ WATERFALL_MARKERS = {
     "increasing": {"marker": {"color": WATERFALL_COLORS["increasing"]}},
     "totals": {"marker": {"color": WATERFALL_COLORS["totals"]}},
 }
+
+# Diversification quality: purple (weak) -> beige (moderate) -> green (strong).
+_DIVERSIFICATION_COLORSCALE: list[list[float | str]] = [
+    [0.0, "#611A51"],
+    [0.5, "#D0C0B1"],
+    [1.0, "#66725B"],
+]
+_MIN_ROLLING_WINDOW = 2
+_MONTHS_FOR_MONTHLY_BARS = 13
+_MONTHS_FOR_QUARTERLY_BARS = 36
+
+
+def bar_freq_for_period(
+    start_idx: dt.date | dt.datetime | Timestamp,
+    end_idx: dt.date | dt.datetime | Timestamp,
+) -> Literal["BME", "BQE", "BYE"]:
+    """Determine report bar frequency from the month span of a period.
+
+    Args:
+        start_idx: Period start date.
+        end_idx: Period end date.
+
+    Returns:
+        ``BME`` for spans shorter than 13 months, ``BQE`` for spans of
+        13 to 36 months, and ``BYE`` for longer spans.
+    """
+    start_ts = Timestamp(Timestamp(start_idx).date())
+    end_ts = Timestamp(Timestamp(end_idx).date())
+
+    if end_ts < start_ts:
+        start_ts, end_ts = end_ts, start_ts
+
+    months_span = (end_ts.year - start_ts.year) * 12 + (end_ts.month - start_ts.month)
+
+    if months_span < _MONTHS_FOR_MONTHLY_BARS:
+        return "BME"
+    if months_span <= _MONTHS_FOR_QUARTERLY_BARS:
+        return "BQE"
+    return "BYE"
 
 
 class PortfolioValueZeroError(Exception):
@@ -644,6 +684,322 @@ def compute_grouped_attribution_with_cumulative(
     return daily_series, cumulative_series, total_series, currency
 
 
+def compute_two_portfolio_diversification_series(
+    data: dict[str, Any],
+    group_by: str = "modelType",
+    cds_like_groups: tuple[str, ...] = ("CdsIndex", "CdsBasket"),
+    cds_label: str = "CDS",
+    non_cds_label: str = "Other instruments",
+    rolling_window: int = 63,
+    cds_scaling_factor: float = 1.0,
+) -> tuple[
+    dict[str, list[dict[str, str | float]]],
+    dict[str, list[dict[str, str | float]]],
+    list[dict[str, str | float]],
+]:
+    """Build two portfolio contribution series and a rolling diversification metric.
+
+    The function splits instrument level performance into two buckets:
+    1) CDS-like instruments (`cds_like_groups`)
+    2) all remaining instruments
+
+    It then computes:
+    - daily return contribution series for each bucket
+    - cumulative contribution series for each bucket (simple running sum)
+    - a rolling diversification benefit measure against total return:
+        1 - sigma(total) / (sigma(cds) + sigma(other))
+
+    Args:
+        data: Performance payload from `get_performance`.
+        group_by: Instrument field used for classification.
+        cds_like_groups: Values in `group_by` treated as CDS-like instruments.
+        cds_label: Output series name for CDS-like bucket.
+        non_cds_label: Output series name for non-CDS bucket.
+        rolling_window: Rolling window length in business days.
+        cds_scaling_factor: Manual multiplier applied to CDS daily contributions.
+            1.0 keeps CDS sleeve unchanged, 1.1 scales it up by 10%.
+
+    Returns:
+        A tuple containing:
+        1) daily series dict for the two buckets
+        2) cumulative series dict for the two buckets and diversification metric
+        3) total portfolio series
+
+    Raises:
+        PortfolioValueZeroError: If total previous portfolio value is zero.
+        ValueError: If `rolling_window` is less than 2 or
+            `cds_scaling_factor` is not positive.
+    """
+    if rolling_window < _MIN_ROLLING_WINDOW:
+        msg = f"rolling_window must be at least {_MIN_ROLLING_WINDOW}"
+        raise ValueError(msg)
+    if cds_scaling_factor <= 0.0:
+        msg = "cds_scaling_factor must be positive"
+        raise ValueError(msg)
+
+    performances = data.get("instrumentPerformances")
+    dates = data.get("dates")
+    series = data.get("series")
+    n_days = len(dates)
+    total_series = [{"date": dates[t], "value": series[t]} for t in range(n_days)]
+
+    groups = [cds_label, non_cds_label]
+    cds_like_set = set(cds_like_groups)
+
+    daily_contribs: dict[str, list[float]] = {grp: [0.0] * n_days for grp in groups}
+    for t in range(1, n_days):
+        total_prev_value = sum(perf["values"][t - 1] for perf in performances)
+        if total_prev_value == 0.0:
+            msg = f"Total portfolio value is zero on day index {t - 1}"
+            raise PortfolioValueZeroError(msg)
+        for perf in performances:
+            prev_value = perf["values"][t - 1]
+            curr_value = perf["values"][t]
+            flow = perf["cashFlows"][t]
+            category = perf["instrument"][group_by]
+            grp = cds_label if category in cds_like_set else non_cds_label
+            delta = curr_value - prev_value - flow
+            daily_contribs[grp][t] += delta / total_prev_value
+
+    cumulative_contribs: dict[str, list[float]] = {
+        grp: [0.0] * n_days for grp in groups
+    }
+    daily_contribs[cds_label] = [
+        value * cds_scaling_factor for value in daily_contribs[cds_label]
+    ]
+
+    for grp in groups:
+        for t in range(1, n_days):
+            cumulative_contribs[grp][t] = (
+                cumulative_contribs[grp][t - 1] + daily_contribs[grp][t]
+            )
+
+    cds_daily = Series(daily_contribs[cds_label], index=dates)
+    non_cds_daily = Series(daily_contribs[non_cds_label], index=dates)
+    total_daily = cds_daily + non_cds_daily
+
+    rolling_total_sigma = total_daily.rolling(
+        window=rolling_window, min_periods=rolling_window
+    ).std()
+    rolling_cds_sigma = cds_daily.rolling(
+        window=rolling_window, min_periods=rolling_window
+    ).std()
+    rolling_non_cds_sigma = non_cds_daily.rolling(
+        window=rolling_window, min_periods=rolling_window
+    ).std()
+    denominator = rolling_cds_sigma + rolling_non_cds_sigma
+    rolling_diversification = (
+        1.0 - (rolling_total_sigma / denominator.replace({0.0: math.nan}))
+    ).fillna(0.0)
+
+    daily_series = {
+        grp: [
+            {"date": dates[t], "value": daily_contribs[grp][t]} for t in range(n_days)
+        ]
+        for grp in groups
+    }
+    cumulative_series = {
+        grp: [
+            {"date": dates[t], "value": cumulative_contribs[grp][t]}
+            for t in range(n_days)
+        ]
+        for grp in groups
+    }
+    cumulative_series["Rolling diversification benefit"] = [
+        {"date": date, "value": value}
+        for date, value in rolling_diversification.items()
+    ]
+
+    return daily_series, cumulative_series, total_series
+
+
+def _diversification_color_bounds(
+    values: Series,
+    color_min: float | None,
+    color_max: float | None,
+) -> tuple[float, float]:
+    """Return color-scale bounds from overrides or the observed data range.
+
+    Args:
+        values: Diversification benefit series, possibly containing NaNs.
+        color_min: Optional lower bound. If omitted, uses the series minimum.
+        color_max: Optional upper bound. If omitted, uses the series maximum.
+
+    Returns:
+        Inclusive ``(cmin, cmax)`` pair. A tiny pad is applied when the
+        bounds collapse so Plotly still has a usable scale.
+    """
+    observed = values.dropna()
+    data_min = float(observed.min()) if not observed.empty else 0.0
+    data_max = float(observed.max()) if not observed.empty else 1.0
+    lower = data_min if color_min is None else color_min
+    upper = data_max if color_max is None else color_max
+    if upper <= lower:
+        pad = 0.01
+        return lower - pad, upper + pad
+    return lower, upper
+
+
+def returns_with_diversification_plot(
+    plot_df: DataFrame,
+    filename: str,
+    title: str | None = None,
+    diversification_column: str | None = None,
+    color_min: float | None = None,
+    color_max: float | None = None,
+    directory: str | Path | None = None,
+    *,
+    auto_open: bool = True,
+    add_logo: bool = True,
+) -> tuple[Figure, str]:
+    """Plot return series above a color-graded diversification benefit series.
+
+    The top panel shows each return / cumulative contribution column. The bottom
+    panel shows diversification benefit plus its mean. Marker color uses a
+    Captor scale from purple (little diversification) through beige to green
+    (strong diversification). The scale follows the observed data range by
+    default so a narrow sample still uses the full purple-to-green span.
+    Pass ``color_min`` / ``color_max`` (for example ``0.0`` and ``1.0``) to pin
+    the theoretical bounds instead.
+
+    Args:
+        plot_df: DataFrame of return series plus a diversification column.
+            If ``diversification_column`` is omitted, the last column is used.
+        filename: Output HTML filename.
+        title: Optional plot title passed to ``plot_html``.
+        diversification_column: Optional name of the diversification series.
+        color_min: Optional lower bound of the quality color scale. Defaults
+            to the minimum observed diversification value.
+        color_max: Optional upper bound of the quality color scale. Defaults
+            to the maximum observed diversification value.
+        directory: Directory to write the HTML file. Defaults to ~/Documents.
+        auto_open: If True, open the HTML file after saving. Defaults to True.
+        add_logo: If True, add Captor logo to the plot. Defaults to True.
+
+    Returns:
+        Tuple of (Plotly Figure object, path to the saved HTML file as string).
+
+    Raises:
+        ValueError: If the diversification column is missing or there are no
+            return series left to plot.
+    """
+    if directory:
+        dirpath = Path(directory).resolve()
+    elif Path.home().joinpath("Documents").exists():
+        dirpath = Path.home().joinpath("Documents")
+    else:
+        dirpath = Path(stack()[1].filename).parent
+
+    cdf = plot_df.copy()
+    if diversification_column is None:
+        diversification_column = str(cdf.columns[-1])
+    if diversification_column not in cdf.columns:
+        msg = f"Diversification column '{diversification_column}' not found in plot_df"
+        raise ValueError(msg)
+
+    return_columns = [
+        column for column in cdf.columns if column != diversification_column
+    ]
+    if not return_columns:
+        msg = (
+            "plot_df must contain at least one return series besides the "
+            "diversification column"
+        )
+        raise ValueError(msg)
+
+    mean_label = "mean benefit"
+    cdf.loc[:, mean_label] = cdf.loc[:, diversification_column].mean()
+    diversification_values = cdf.loc[:, diversification_column]
+    scale_min, scale_max = _diversification_color_bounds(
+        values=diversification_values,
+        color_min=color_min,
+        color_max=color_max,
+    )
+
+    designs: dict[str, dict[str, Any]] = {
+        column: {"mode": "lines", "name": str(column), "line": {"width": 2.5}}
+        for column in return_columns
+    }
+    designs[mean_label] = {
+        "mode": "lines",
+        "name": mean_label,
+        "line": {"width": 2.5, "color": "lightgrey", "dash": "dash"},
+    }
+    designs[str(diversification_column)] = {
+        "mode": "lines+markers",
+        "name": str(diversification_column),
+        "line": {"width": 2.5, "color": "lightgrey"},
+        "marker": {
+            "size": 8.0,
+            "color": list(diversification_values.to_numpy()),
+            "colorscale": _DIVERSIFICATION_COLORSCALE,
+            "cmin": scale_min,
+            "cmax": scale_max,
+            "cauto": False,
+            "showscale": True,
+            "colorbar": {
+                "title": {"text": "Quality"},
+                "tickformat": ".1%",
+                "thickness": 14,
+                "len": 0.4,
+                "y": 0.15,
+            },
+        },
+    }
+
+    rows = 2
+    positions = [1] * len(return_columns) + [2, 2]
+    figure = make_subplots(rows=rows)
+    figdict, _ = load_plotly_dict()
+    figure.update_layout(figdict.get("layout"))
+    hoverlabel = {
+        "bgcolor": "white",
+        "bordercolor": "white",
+        "font": {"color": "#01579B"},
+    }
+    for label, pos in zip(designs, positions, strict=True):
+        figure.add_scatter(
+            x=list(cdf.index),
+            y=list(cdf.loc[:, label].to_numpy()),
+            name=label,
+            hovertemplate="Value: %{y:.1%}<br>Date: %{x| %Y-%m-%d}",
+            hoverlabel=hoverlabel,
+            row=pos,
+            col=1,
+        )
+        figure.update_traces(designs[label], selector={"name": label})
+
+    for i in range(rows):
+        figure.update_xaxes(
+            cast("dict[str, Any]", figdict.get("layout")["xaxis"]),
+            row=i + 1,
+            col=1,
+        )
+        figure.update_yaxes(
+            cast("dict[str, Any]", figdict.get("layout")["yaxis"]),
+            row=i + 1,
+            col=1,
+        )
+    figure.update_xaxes(matches="x")
+
+    figure.update_layout(
+        font_size=16,
+        yaxis={"tickformat": ".1%", "title": "Cumulative contribution"},
+        yaxis2={"tickformat": ".1%", "title": "Diversification benefit"},
+    )
+
+    plotfile = dirpath / filename
+    plotfile_str = plot_html(
+        figure=figure,
+        plotfile=plotfile,
+        title=title,
+        auto_open=auto_open,
+        add_logo=add_logo,
+    )
+
+    return figure, plotfile_str
+
+
 def attribution_area(
     data: OpenFrame,
     series: OpenTimeSeries,
@@ -767,6 +1123,7 @@ def attribution_waterfall(
     data: OpenFrame,
     filename: str,
     title: str | None = None,
+    tick_fmt: str = ".2%",
     directory: str | Path | None = None,
     output_type: Literal["file", "div"] = "file",
     *,
@@ -778,6 +1135,7 @@ def attribution_waterfall(
         data: OpenFrame containing group time series data.
         filename: Base filename (without extension) for the saved plot.
         title: Optional chart title.
+        tick_fmt: Format string for axis ticks and bar labels.
         directory: Directory to write the HTML file. Defaults to ~/Documents.
         output_type: Plotly argument to set output as 'div' image or html 'file'
         auto_open: If True, open the HTML file after saving.
@@ -806,7 +1164,7 @@ def attribution_waterfall(
         columns=["Accumulated Returns"],
     )
 
-    retformats = ["{:+.2%}"] * (ret_df.shape[0] - 1) + ["{:.2%}"]
+    retformats = [f"{{:+{tick_fmt}}}"] * (ret_df.shape[0] - 1) + [f"{{:{tick_fmt}}}"]
     rettext = [
         fmt.format(t) for fmt, t in zip(retformats, ret_df.iloc[:, 0], strict=False)
     ]
@@ -831,7 +1189,7 @@ def attribution_waterfall(
         margin={"t": 70},
     )
     figure.update_xaxes(gridcolor="#EEEEEE", automargin=True)
-    figure.update_yaxes(tickformat=".2%", gridcolor="#EEEEEE", automargin=True)
+    figure.update_yaxes(tickformat=tick_fmt, gridcolor="#EEEEEE", automargin=True)
 
     plotfile = plot_html(
         figure=figure,

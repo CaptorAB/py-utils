@@ -1,20 +1,19 @@
 """Captor Aster Global High Yield attribution analysis module."""
 
-from openseries import (
-    OpenFrame,
-    OpenTimeSeries,
-    ValueType,
-    report_html,
-)
+import datetime as dt
+
+from openseries import OpenFrame, OpenTimeSeries, ValueType, report_html
 from pandas import DataFrame, concat
 
 from attribution import (
-    attribution_area,
     attribution_waterfall,
+    bar_freq_for_period,
     compute_grouped_attribution_with_cumulative,
+    compute_two_portfolio_diversification_series,
     get_party_name,
     get_performance,
     get_timeserie,
+    returns_with_diversification_plot,
 )
 from graphql_client import GraphqlClient
 
@@ -23,11 +22,55 @@ if __name__ == "__main__":
     auto_open = True
 
     fund_id = "62690582071ef0776524606c"
-    bmk_ts_id = "630a6fd5935d4f68b57d45e1"
     fund_name = get_party_name(graphql=gql_client, party_id=fund_id)
+    filename_base = fund_name.replace(" ", "").replace("-", "")
+    rolling_window = 63
+    cds_scaling_factor = 1.0
 
-    start = None  # dt.date(2025, 12, 30)
+    start = dt.date(2022, 12, 6)
     perfdata = get_performance(graphql=gql_client, client_id=fund_id, start_dt=start)
+    _, cds_vs_other_cumulative, _ = compute_two_portfolio_diversification_series(
+        data=perfdata,
+        group_by="modelType",
+        cds_like_groups=("CdsIndex", "CdsBasket"),
+        rolling_window=rolling_window,
+        cds_scaling_factor=cds_scaling_factor,
+    )
+    diversification_values = [
+        point["value"]
+        for idx, point in enumerate(
+            cds_vs_other_cumulative["Rolling diversification benefit"]
+        )
+        if idx >= rolling_window - 1
+    ]
+    diversification_mean = sum(diversification_values) / len(diversification_values)
+    print(  # noqa: T201
+        "Mean rolling diversification benefit "
+        f"(window={rolling_window}, cds_scaling_factor="
+        f"{cds_scaling_factor:.2f}): {diversification_mean:.2%}",
+    )
+
+    diversification_label = "Rolling diversification benefit"
+    two_portfolio_df = DataFrame(
+        {
+            label: [item["value"] for item in values]
+            for label, values in cds_vs_other_cumulative.items()
+        },
+        index=[
+            item["date"] for item in cds_vs_other_cumulative[diversification_label]
+        ],
+    )
+    two_portfolio_df.loc[
+        two_portfolio_df.index[: rolling_window - 1],
+        diversification_label,
+    ] = float("nan")
+    _, _ = returns_with_diversification_plot(
+        plot_df=two_portfolio_df,
+        filename=f"{filename_base}_cds_other_diversification.html",
+        title=f"{fund_name} - CDS vs other instruments and diversification",
+        diversification_column=diversification_label,
+        auto_open=auto_open,
+    )
 
     _, cumperf, totserie, baseccy = compute_grouped_attribution_with_cumulative(
         data=perfdata,
@@ -36,28 +79,6 @@ if __name__ == "__main__":
         method="carino_menchero",
         fees_and_costs_label="Fees & costs",
         graphql=gql_client,
-    )
-
-    navserie = OpenTimeSeries.from_arrays(
-        name=fund_name,
-        dates=[item["date"] for item in totserie],
-        values=[item["value"] for item in totserie],
-        baseccy=baseccy,
-    )
-    bmk_ts = get_timeserie(
-        graphql=gql_client,
-        timeseries_id=bmk_ts_id,
-        name="Bloomberg Global High Yield hedged SEK",
-    )
-
-    compare = OpenFrame(constituents=[navserie, bmk_ts])
-
-    report_html(
-        data=compare,
-        bar_freq="BQE",
-        title=fund_name,
-        filename=f"{fund_name.replace(' ', '')}_report.html",
-        auto_open=auto_open,
     )
 
     cds = DataFrame()
@@ -97,17 +118,32 @@ if __name__ == "__main__":
 
     frame.tsdf = frame.tsdf.add(1.0)
 
-    _, _ = attribution_area(
-        data=frame,
-        series=navserie,
-        title=fund_name,
-        tick_fmt=".2%",
-        filename=f"{fund_name.replace(' ', '').replace('-', '')}_area",
-        auto_open=auto_open,
-    )
     _, _ = attribution_waterfall(
         data=frame,
         title=fund_name,
-        filename=f"{fund_name.replace(' ', '').replace('-', '')}_waterfall",
+        tick_fmt=".2%",
+        filename=f"{filename_base}_waterfall",
+        auto_open=auto_open,
+    )
+
+    navserie = OpenTimeSeries.from_arrays(
+        name=fund_name,
+        dates=[item["date"] for item in totserie],
+        values=[item["value"] for item in totserie],
+        baseccy=baseccy,
+    )
+    compare_id = "630a6fd5935d4f68b57d45e1"
+    compare_name = "Bloomberg Global High Yield hedged SEK"
+    compareserie = get_timeserie(
+        graphql=gql_client, timeseries_id=compare_id, name=compare_name
+    )
+    compare = OpenFrame(constituents=[navserie, compareserie])
+    report_html(
+        data=compare,
+        bar_freq=bar_freq_for_period(
+            start_idx=compare.first_idx, end_idx=compare.last_idx
+        ),
+        title=fund_name,
+        filename=f"{filename_base}_report.html",
         auto_open=auto_open,
     )

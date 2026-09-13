@@ -2,7 +2,8 @@
 
 Defines AttributionTestError for signaling test failures.
 Covers get_party_name, get_performance,
-compute_grouped_attribution_with_cumulative, and attribution_area.
+compute_grouped_attribution_with_cumulative, diversification helpers,
+attribution_area, and attribution_waterfall.
 Targets Python 3.14 and follows Ruff standards.
 """
 
@@ -558,6 +559,179 @@ class TestAttribution:
         if zero_warned:
             raise AttributionTestError(msg)
 
+    def test_two_portfolio_diversification_series(self) -> None:
+        """Test CDS vs other split, scaling, and rolling diversification."""
+        data = {
+            "dates": ["d1", "d2", "d3"],
+            "series": [0.0, 0.01, 0.02],
+            "instrumentPerformances": [
+                {
+                    "values": [100.0, 110.0, 121.0],
+                    "cashFlows": [0.0, 0.0, 0.0],
+                    "instrument": {"modelType": "CdsIndex", "currency": "EUR"},
+                },
+                {
+                    "values": [200.0, 190.0, 185.0],
+                    "cashFlows": [0.0, 0.0, 0.0],
+                    "instrument": {"modelType": "Bond", "currency": "EUR"},
+                },
+            ],
+        }
+        daily, cumu, total = am.compute_two_portfolio_diversification_series(
+            data=data,
+            rolling_window=2,
+            cds_scaling_factor=2.0,
+        )
+        expected_cds_d1 = 2.0 * (10.0 / 300.0)
+        rec_cds = daily["CDS"][1]["value"]
+        msg1 = f"Scaled CDS daily wrong: {rec_cds}"
+        if not math.isclose(rec_cds, expected_cds_d1, rel_tol=1e-9):
+            raise AttributionTestError(msg1)
+
+        expected_other_d1 = -10.0 / 300.0
+        rec_other = daily["Other instruments"][1]["value"]
+        msg2 = f"Other daily wrong: {rec_other}"
+        if not math.isclose(rec_other, expected_other_d1, rel_tol=1e-9):
+            raise AttributionTestError(msg2)
+
+        rec_cum_cds = cumu["CDS"][2]["value"]
+        expected_cum_cds = expected_cds_d1 + 2.0 * (11.0 / 300.0)
+        msg3 = f"CDS cumulative wrong: {rec_cum_cds}"
+        if not math.isclose(rec_cum_cds, expected_cum_cds, rel_tol=1e-9):
+            raise AttributionTestError(msg3)
+
+        first_div = cumu["Rolling diversification benefit"][0]["value"]
+        msg4 = f"Warmup diversification should be 0.0, got {first_div}"
+        if first_div != 0.0:
+            raise AttributionTestError(msg4)
+
+        expected_total = [
+            {"date": "d1", "value": 0.0},
+            {"date": "d2", "value": 0.01},
+            {"date": "d3", "value": 0.02},
+        ]
+        msg5 = f"Total series mismatched: {total}"
+        if total != expected_total:
+            raise AttributionTestError(msg5)
+
+    def test_two_portfolio_diversification_invalid_window(self) -> None:
+        """Test rolling_window less than 2 raises ValueError."""
+        raised = False
+        try:
+            am.compute_two_portfolio_diversification_series(
+                data={"dates": ["d1"], "series": [0.0], "instrumentPerformances": []},
+                rolling_window=1,
+            )
+        except ValueError:
+            raised = True
+        msg = "rolling_window=1 did not raise ValueError"
+        if not raised:
+            raise AttributionTestError(msg)
+
+    def test_two_portfolio_diversification_invalid_scale(self) -> None:
+        """Test non-positive cds_scaling_factor raises ValueError."""
+        raised = False
+        try:
+            am.compute_two_portfolio_diversification_series(
+                data={"dates": ["d1"], "series": [0.0], "instrumentPerformances": []},
+                cds_scaling_factor=0.0,
+            )
+        except ValueError:
+            raised = True
+        msg = "cds_scaling_factor=0.0 did not raise ValueError"
+        if not raised:
+            raise AttributionTestError(msg)
+
+    def test_two_portfolio_diversification_zero_value(self) -> None:
+        """Test zero previous portfolio value raises PortfolioValueZeroError."""
+        data = {
+            "dates": ["d1", "d2"],
+            "series": [0.0, 0.0],
+            "instrumentPerformances": [
+                {
+                    "values": [0.0, 0.0],
+                    "cashFlows": [0.0, 0.0],
+                    "instrument": {"modelType": "CdsIndex", "currency": "EUR"},
+                }
+            ],
+        }
+        raised = False
+        try:
+            am.compute_two_portfolio_diversification_series(
+                data=data, rolling_window=2
+            )
+        except PortfolioValueZeroError:
+            raised = True
+        msg = "Zero total prev did not raise PortfolioValueZeroError"
+        if not raised:
+            raise AttributionTestError(msg)
+
+    def test_bar_freq_for_period(self) -> None:
+        """Test bar frequency thresholds and reversed date order."""
+        monthly = am.bar_freq_for_period(dt.date(2024, 1, 15), dt.date(2024, 12, 15))
+        if monthly != "BME":
+            msg = f"12-month span should be BME, got {monthly}"
+            raise AttributionTestError(msg)
+
+        quarterly = am.bar_freq_for_period(dt.date(2023, 1, 1), dt.date(2024, 2, 1))
+        if quarterly != "BQE":
+            msg = f"13-month span should be BQE, got {quarterly}"
+            raise AttributionTestError(msg)
+
+        at_quarterly_cap = am.bar_freq_for_period(
+            dt.date(2020, 1, 1), dt.date(2023, 1, 1)
+        )
+        if at_quarterly_cap != "BQE":
+            msg = f"36-month span should be BQE, got {at_quarterly_cap}"
+            raise AttributionTestError(msg)
+
+        yearly = am.bar_freq_for_period(dt.date(2020, 1, 1), dt.date(2023, 2, 1))
+        if yearly != "BYE":
+            msg = f"37-month span should be BYE, got {yearly}"
+            raise AttributionTestError(msg)
+
+        swapped = am.bar_freq_for_period(dt.date(2024, 12, 15), dt.date(2024, 1, 15))
+        if swapped != "BME":
+            msg = f"Reversed 12-month span should be BME, got {swapped}"
+            raise AttributionTestError(msg)
+
+        from_timestamp = am.bar_freq_for_period(
+            pd.Timestamp("2024-01-15"),
+            dt.datetime(2024, 6, 15, tzinfo=dt.UTC),
+        )
+        if from_timestamp != "BME":
+            msg = f"Timestamp inputs should be BME, got {from_timestamp}"
+            raise AttributionTestError(msg)
+
+    def test_diversification_color_bounds(self) -> None:
+        """Test color-scale bounds from data, overrides, and collapsed range."""
+        values = pd.Series([0.2, float("nan"), 0.8])
+        lower, upper = am._diversification_color_bounds(values, None, None)
+        if not math.isclose(lower, 0.2, rel_tol=1e-9) or not math.isclose(
+            upper, 0.8, rel_tol=1e-9
+        ):
+            msg = f"Observed bounds wrong: {(lower, upper)}"
+            raise AttributionTestError(msg)
+
+        pinned = am._diversification_color_bounds(values, 0.0, 1.0)
+        if pinned != (0.0, 1.0):
+            msg = f"Pinned bounds wrong: {pinned}"
+            raise AttributionTestError(msg)
+
+        empty_lower, empty_upper = am._diversification_color_bounds(
+            pd.Series([float("nan")]), None, None
+        )
+        if empty_lower != 0.0 or empty_upper != 1.0:
+            msg = f"Empty-series bounds wrong: {(empty_lower, empty_upper)}"
+            raise AttributionTestError(msg)
+
+        pad_lower, pad_upper = am._diversification_color_bounds(
+            pd.Series([0.5, 0.5]), None, None
+        )
+        if pad_lower >= pad_upper:
+            msg = f"Collapsed bounds were not padded: {(pad_lower, pad_upper)}"
+            raise AttributionTestError(msg)
+
 
 class DummySeries:
     """Stub for OpenTimeSeries-like object used in attribution_area."""
@@ -827,3 +1001,159 @@ def test_attribution_waterfall_title() -> None:
     msg1 = "Figure missing title in layout"
     if not any("title" in key for key in fig_dict["layout"]):
         raise AttributionTestError(msg1)
+
+
+def test_attribution_waterfall_tick_fmt() -> None:
+    """Test attribution_waterfall uses a custom tick format."""
+    value_data = pd.DataFrame({"value": [1.0, 2.0]}, index=["A", "B"])
+    series = DummySeries("test", value_data)
+    frame = DummyFrame([series], [0.1])
+    frame.value_ret = pd.Series([0.1, 0.2], index=["A", "B"])
+
+    fig, path = am.attribution_waterfall(
+        data=cast("OpenFrame", frame),
+        filename="test_tick",
+        tick_fmt=".3%",
+        auto_open=False,
+        output_type="div",
+    )
+    yaxis = fig.to_dict()["layout"].get("yaxis", {})
+    rec_fmt = yaxis.get("tickformat")
+    msg = f"Expected tickformat '.3%', got {rec_fmt}"
+    if rec_fmt != ".3%":
+        raise AttributionTestError(msg)
+    if not path:
+        raise AttributionTestError("Waterfall plot returned an empty path")
+
+
+def test_returns_with_diversification_plot(tmp_path: Path, monkeypatch: Any) -> None:
+    """Test diversification plot writes HTML and includes both panels."""
+    monkeypatch.setattr(am, "plot_html", lambda **kwargs: str(kwargs["plotfile"]))
+    plot_df = pd.DataFrame(
+        {
+            "CDS": [0.0, 0.01, 0.03],
+            "Other instruments": [0.0, -0.005, -0.01],
+            "Rolling diversification benefit": [float("nan"), 0.2, 0.4],
+        },
+        index=["d1", "d2", "d3"],
+    )
+    fig, path = am.returns_with_diversification_plot(
+        plot_df=plot_df,
+        filename="div.html",
+        title="T",
+        diversification_column="Rolling diversification benefit",
+        color_min=0.0,
+        color_max=1.0,
+        directory=tmp_path,
+        auto_open=False,
+        add_logo=False,
+    )
+    names = [trace.name for trace in fig.data]
+    msg1 = f"Missing expected traces: {names}"
+    if "CDS" not in names or "Rolling diversification benefit" not in names:
+        raise AttributionTestError(msg1)
+    if "mean benefit" not in names:
+        raise AttributionTestError(f"Missing mean benefit trace: {names}")
+    expected = tmp_path / "div.html"
+    msg2 = f"Plot path wrong: {path}"
+    if path != str(expected):
+        raise AttributionTestError(msg2)
+
+
+def test_returns_with_diversification_plot_default_column(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """Test last column is used when diversification_column is omitted."""
+    monkeypatch.setattr(am, "plot_html", lambda **kwargs: str(kwargs["plotfile"]))
+    plot_df = pd.DataFrame(
+        {"CDS": [0.0, 0.01], "benefit": [0.1, 0.2]},
+        index=["d1", "d2"],
+    )
+    fig, _ = am.returns_with_diversification_plot(
+        plot_df=plot_df,
+        filename="div.html",
+        directory=tmp_path,
+        auto_open=False,
+    )
+    names = [trace.name for trace in fig.data]
+    if "benefit" not in names:
+        raise AttributionTestError(f"Default column not plotted: {names}")
+
+
+def test_returns_with_diversification_plot_missing_column() -> None:
+    """Test a missing diversification column raises ValueError."""
+    plot_df = pd.DataFrame({"CDS": [0.0, 0.01]}, index=["d1", "d2"])
+    raised = False
+    try:
+        am.returns_with_diversification_plot(
+            plot_df=plot_df,
+            filename="div.html",
+            diversification_column="missing",
+            auto_open=False,
+        )
+    except ValueError:
+        raised = True
+    if not raised:
+        raise AttributionTestError("Missing column did not raise ValueError")
+
+
+def test_returns_with_diversification_plot_no_return_series() -> None:
+    """Test a diversification-only DataFrame raises ValueError."""
+    plot_df = pd.DataFrame({"benefit": [0.1, 0.2]}, index=["d1", "d2"])
+    raised = False
+    try:
+        am.returns_with_diversification_plot(
+            plot_df=plot_df,
+            filename="div.html",
+            diversification_column="benefit",
+            auto_open=False,
+        )
+    except ValueError:
+        raised = True
+    if not raised:
+        raise AttributionTestError("No return series did not raise ValueError")
+
+
+def test_returns_with_diversification_plot_home_documents(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """Test default directory uses ~/Documents when it exists."""
+    documents = tmp_path / "Documents"
+    documents.mkdir()
+    monkeypatch.setattr(am.Path, "home", classmethod(lambda _cls: tmp_path))
+    monkeypatch.setattr(am, "plot_html", lambda **kwargs: str(kwargs["plotfile"]))
+    plot_df = pd.DataFrame(
+        {"CDS": [0.0, 0.01], "benefit": [0.1, 0.2]},
+        index=["d1", "d2"],
+    )
+    _, path = am.returns_with_diversification_plot(
+        plot_df=plot_df,
+        filename="div.html",
+        auto_open=False,
+    )
+    expected = documents / "div.html"
+    if path != str(expected):
+        msg = f"Expected Documents path {expected}, got {path}"
+        raise AttributionTestError(msg)
+
+
+def test_returns_with_diversification_plot_fallback_dir(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """Test fallback directory when Documents does not exist."""
+    missing_home = tmp_path / "nohome"
+    missing_home.mkdir()
+    monkeypatch.setattr(am.Path, "home", classmethod(lambda _cls: missing_home))
+    monkeypatch.setattr(am, "plot_html", lambda **kwargs: str(kwargs["plotfile"]))
+    plot_df = pd.DataFrame(
+        {"CDS": [0.0, 0.01], "benefit": [0.1, 0.2]},
+        index=["d1", "d2"],
+    )
+    _, path = am.returns_with_diversification_plot(
+        plot_df=plot_df,
+        filename="div.html",
+        auto_open=False,
+    )
+    if not str(path).endswith("div.html"):
+        msg = f"Fallback path unexpected: {path}"
+        raise AttributionTestError(msg)
