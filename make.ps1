@@ -16,7 +16,7 @@ param (
 $ErrorActionPreference = 'Stop'
 
 # Pin Poetry to the same version as Makefile.
-[string]$poetryVersion = '2.4.3'
+[string]$poetryVersion = '2.5.1'
 
 function Set-ProjectPythonPath {
     if ($env:PYTHONPATH) {
