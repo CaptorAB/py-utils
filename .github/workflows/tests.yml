@@ -38,7 +38,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python on ${{ runner.os }}
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         id: setup_python
         with:
           python-version-file: '.python-version'
@@ -113,7 +113,7 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ github.ref_name == 'master' }}
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           report-type: test_results
@@ -122,7 +122,7 @@ jobs:
 
       - name: Upload coverage to Codecov.io
         if: ${{ github.ref_name == 'master' }}
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: CaptorAB/py-utils
