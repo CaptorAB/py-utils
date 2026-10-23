@@ -94,9 +94,9 @@ if __name__ == "__main__":
             tmp.value_to_ret()
             cds = concat([cds, tmp.tsdf], axis="columns", sort=True)
 
-    cds["cds"] = cds.sum(axis="columns")
     cds_series = OpenTimeSeries.from_df(
-        dframe=cds.loc[:, "cds"], valuetype=ValueType.RTRN
+        dframe=cds.sum(axis="columns").rename(("cds", ValueType.RTRN)),
+        valuetype=ValueType.RTRN,
     )
     cds_series.to_cumret()
     cds_series.set_new_label("CdsIndex")
